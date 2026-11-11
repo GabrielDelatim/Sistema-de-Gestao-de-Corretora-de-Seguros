@@ -70,26 +70,6 @@ python -m waitress --host=0.0.0.0 --port=5000 --threads=8 app:app
 
 ---
 
-## 📁 O que Enviar e o que NÃO Enviar ao GitHub
-
-O arquivo `.gitignore` já está configurado. A tabela abaixo resume o que deve ser commitado:
-
-| Tipo de Arquivo | Arquivo / Pasta | Enviar ao GitHub? | Motivo |
-|---|---|:---:|---|
-| **Código-fonte** | `app.py`, `data.py`, `database.py`, `init_db.py` | ✅ **SIM** | Estrutura e lógica do sistema |
-| **Scripts de execução** | `iniciar.bat`, `fazer_backup.bat` | ✅ **SIM** | Facilidade de inicialização e backup |
-| **Interface / Telas** | `templates/` e `static/` | ✅ **SIM** | Layouts HTML e estilos CSS |
-| **Dependências** | `requirements.txt` | ✅ **SIM** | Lista de bibliotecas para instalação |
-| **Documentação** | `README.md`, `.gitignore` | ✅ **SIM** | Instruções do repositório |
-| **Chave Secreta** | `.secret_key` | ❌ **NÃO** | **Segredo criptográfico da instância** |
-| **Banco de Dados** | `corretora.db`, `*.db` | ❌ **NÃO** | **Contém dados reais de clientes e apólices** |
-| **Arquivos dos Clientes** | `uploads/*` | ❌ **NÃO** | **Documentos, vistorias e PDFs confidenciais** |
-| **Cópias de Segurança** | `backups/*` | ❌ **NÃO** | Backups locais gerados |
-| **Logs do Servidor** | `app.log`, `*.log` | ❌ **NÃO** | Contém IPs e histórico de acessos |
-| **Cache do Python** | `__pycache__/`, `venv/` | ❌ **NÃO** | Arquivos temporários de compilação |
-
----
-
 ## 📐 Modelagem e Diagramas
 
 A documentação técnica e visual completa do sistema está organizada na pasta [`diagramas/`](diagramas/):
@@ -101,6 +81,6 @@ A documentação técnica e visual completa do sistema está organizada na pasta
 
 ---
 
-## 📄 Licença
-
-Este projeto é disponibilizado para uso e gestão de corretoras de seguros.
+## 👥 Desenvolvedores / Colaboradores
+- GabrielDelatim https://github.com/GabrielDelatim
+- TmvMartins "Thomas Martins" https://github.com/TmvMartins
