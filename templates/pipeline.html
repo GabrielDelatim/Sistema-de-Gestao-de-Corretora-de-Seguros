@@ -1,0 +1,324 @@
+{% extends "layout/base.html" %}
+
+{% block titulo %}{{ quadro.nome }}{% endblock %}
+{% block migalha %}<a href="{{ url_for('quadros') }}" style="color:var(--text-faint);">Quadros</a> · {{ quadro.comercial }}{% endblock %}
+{% block cabecalho %}{{ quadro.nome }}{% endblock %}
+
+{% block acoes_topbar %}
+  <a class="btn btn-secondary" href="{{ url_for('quadros') }}">
+    Voltar aos Quadros
+  </a>
+  <button class="btn btn-primary" type="button" onclick="abrirModalNovoCard()">
+    {{ icone('plus', tamanho=16) }}
+    Novo Card
+  </button>
+{% endblock %}
+
+{% block conteudo %}
+
+  <!-- Barra de Filtros e Busca Rápida no Kanban -->
+  <div class="toolbar" style="margin-bottom:var(--sp-4);">
+    <div class="search-box">
+      {{ icone('search') }}
+      <input type="text" class="input" id="filtroKanban" placeholder="Buscar card por cliente, ramo ou placa..." oninput="filtrarKanban(this.value)">
+    </div>
+
+    <div class="flex items-center gap-3">
+      <span class="text-faint" style="font-size:12.5px;">
+        Responsável: <strong style="color:var(--text);">{{ quadro.comercial }}</strong>
+      </span>
+      <span class="badge info">{{ quadro.tipo }}</span>
+    </div>
+  </div>
+
+  <!-- Modal / Painel para Criação de Novo Card -->
+  <div id="modalNovoCard" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.5); backdrop-filter:blur(3px); z-index:50; align-items:center; justify-content:center; padding:var(--sp-4);">
+    <div class="card" style="width:100%; max-width:620px; max-height:90vh; overflow-y:auto; box-shadow:var(--shadow-lg);">
+      <div class="card-header">
+        <h2>
+          {{ icone('plus', tamanho=18) }}
+          Novo Card de Negociação
+        </h2>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="fecharModalNovoCard()" style="padding:4px 8px;">✕</button>
+      </div>
+
+      <form method="POST" action="{{ url_for('card_novo', id_quadro=quadro.id) }}">
+
+        {% if quadro.tipo == 'Seguros' %}
+          <div class="form-grid">
+            <div class="field full">
+              <label for="tipo">Tipo da Operação</label>
+              <select class="input" id="tipo" name="tipo" onchange="alternarTipo(this.value)">
+                {% for t in tipos_card %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <!-- Alternador para Cliente Novo (só no tipo 'Novo') -->
+          <div id="blocoModoCliente" style="display:none; margin-bottom:var(--sp-4); padding:var(--sp-3); background:var(--bg); border-radius:var(--radius); border:1px solid var(--border);">
+            <div style="font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:6px;">Origem do Cliente:</div>
+            <div class="flex gap-4">
+              <label class="flex items-center gap-2" style="font-size:13px; cursor:pointer;">
+                <input type="radio" name="modo_cliente" value="existente" checked onchange="alternarModoCliente('existente')"> Cliente da Carteira
+              </label>
+              <label class="flex items-center gap-2" style="font-size:13px; cursor:pointer;">
+                <input type="radio" name="modo_cliente" value="novo" onchange="alternarModoCliente('novo')"> Cadastrar Novo Cliente Agora
+              </label>
+            </div>
+          </div>
+
+          <div class="form-grid" id="campoClienteExistente">
+            <div class="field">
+              <label for="cadastro_id">Cliente</label>
+              <select class="input" id="cadastro_id" name="cadastro_id">
+                {% for c in clientes %}<option value="{{ c.id }}">{{ c.nome }} ({{ c.documento }})</option>{% endfor %}
+              </select>
+            </div>
+            <div class="field" id="campoBase">
+              <label for="seguro_base_id">Apólice Anterior (Base)</label>
+              <select class="input" id="seguro_base_id" name="seguro_base_id">
+                <option value="">— Nenhuma (negociação em branco) —</option>
+                {% for a in apolices %}
+                  <option value="{{ a.id }}">{{ a.cadastro.nome }} · {{ a.ramo }} ({{ a.seguradora }})</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="form-grid" id="campoClienteNovo" style="display:none;">
+            <div class="field full">
+              <label for="novo_nome">Nome Completo / Razão Social</label>
+              <input class="input" type="text" id="novo_nome" name="novo_nome" placeholder="Ex: Lucas Ferreira dos Santos">
+            </div>
+            <div class="field">
+              <label for="novo_documento">CPF ou CNPJ</label>
+              <input class="input" type="text" id="novo_documento" name="novo_documento" placeholder="000.000.000-00">
+            </div>
+            <div class="field">
+              <label for="novo_tipo">Tipo de Pessoa</label>
+              <select class="input" id="novo_tipo" name="novo_tipo">
+                <option value="PF">Pessoa Física (PF)</option>
+                <option value="PJ">Pessoa Jurídica (PJ)</option>
+              </select>
+            </div>
+            <p class="hint full" style="margin-top:0;">
+              O cadastro será criado imediatamente e vinculado ao comercial <strong>{{ quadro.comercial }}</strong>.
+            </p>
+          </div>
+
+        {% else %}
+          <!-- Quadro de Sinistro -->
+          <input type="hidden" name="tipo" value="Sinistro">
+          <div class="form-grid">
+            <div class="field full">
+              <label for="seguro_base_id">Apólice Coberta</label>
+              <select class="input" id="seguro_base_id" name="seguro_base_id" required>
+                {% for a in apolices %}
+                  <option value="{{ a.id }}">{{ a.cadastro.nome }} · {{ a.ramo }} · {{ a.seguradora }} (Apólice {{ a.numero_apolice or '—' }})</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        {% endif %}
+
+        <div class="flex gap-3" style="justify-content:flex-end; margin-top:var(--sp-4); padding-top:var(--sp-3); border-top:1px solid var(--border);">
+          <button class="btn btn-secondary" type="button" onclick="fecharModalNovoCard()">Cancelar</button>
+          <button class="btn btn-primary" type="submit">Confirmar e Criar Card</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Quadro Kanban estilo Trello -->
+  <div class="kanban-board" id="kanbanBoard">
+    {% for nome_coluna, cards in colunas.items() %}
+      <div class="kanban-col">
+        <div class="kanban-col-head">
+          <span class="col-title">{{ nome_coluna }}</span>
+          <span class="count">{{ cards|length }}</span>
+        </div>
+        <div class="kanban-col-body" data-coluna="{{ nome_coluna }}">
+          {% for c in cards %}
+            {% set cor_tipo = 'purple' if c.tipo == 'Renovação' else ('success' if c.tipo == 'Novo' else ('info' if c.tipo == 'Endosso' else ('warning' if c.tipo == 'Sinistro' else 'danger'))) %}
+            <div class="kanban-card" draggable="true" data-id="{{ c.id }}" data-coluna-origem="{{ nome_coluna }}"
+                 data-href="{{ url_for('card_detalhe', id_card=c.id) }}"
+                 data-search="{{ (c.cliente.nome if c.cliente else '') ~ ' ' ~ c.tipo ~ ' ' ~ (c.referencia.ramo if c.referencia else '') ~ ' ' ~ (c.referencia.item if c.referencia else '') }}">
+
+              <!-- Etiqueta colorida estilo Trello no topo do card -->
+              <div class="trello-labels">
+                <span class="trello-label {{ cor_tipo }}">{{ c.tipo }}</span>
+                <span style="font-size:10px; color:var(--text-faint); margin-left:auto; font-weight:500;">#{{ c.id }}</span>
+              </div>
+
+              <!-- Título: nome do cliente -->
+              <div class="card-title">{{ c.cliente.nome if c.cliente else 'Cliente não identificado' }}</div>
+
+              <!-- Subtítulo: ramo e seguradora -->
+              <div class="card-subtitle">
+                {% if c.referencia and c.referencia.ramo %}
+                  {{ c.referencia.ramo }}{% if c.referencia.seguradora %} · {{ c.referencia.seguradora }}{% endif %}
+                {% else %}
+                  Proposta em elaboração
+                {% endif %}
+              </div>
+
+              <!-- Badges inferiores estilo Trello -->
+              <div class="trello-badges">
+                <div style="display:flex; gap:6px; align-items:center;">
+                  {% if c.total_tarefas and c.total_tarefas > 0 %}
+                    <span class="trello-badge-item {{ 'has-items' if c.tarefas_pendentes > 0 else '' }}"
+                          title="{{ c.total_tarefas }} tarefa(s) — {{ c.tarefas_pendentes }} pendente(s)">
+                      {{ icone('task', tamanho=13) }}
+                      {{ c.total_tarefas }}
+                    </span>
+                  {% endif %}
+                  {% if c.total_comentarios and c.total_comentarios > 0 %}
+                    <span class="trello-badge-item" title="{{ c.total_comentarios }} comentário(s)">
+                      {{ icone('comment', tamanho=13) }}
+                      {{ c.total_comentarios }}
+                    </span>
+                  {% endif %}
+                </div>
+                {% if c.referencia and c.referencia.premio %}
+                  <span class="trello-val-chip">{{ c.referencia.premio|moeda }}</span>
+                {% endif %}
+              </div>
+
+            </div>
+          {% endfor %}
+
+          <!-- Botão Adicionar Card ao final de cada coluna (estilo Trello) -->
+          <button class="kanban-add-btn" onclick="abrirModalNovoCard()">
+            + Adicionar card
+          </button>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+  // Modal de Novo Card
+  const modalNovoCard = document.getElementById('modalNovoCard');
+  function abrirModalNovoCard() {
+    modalNovoCard.style.display = 'flex';
+  }
+  function fecharModalNovoCard() {
+    modalNovoCard.style.display = 'none';
+  }
+
+  // Fecha no clique fora
+  modalNovoCard.addEventListener('click', (e) => {
+    if (e.target === modalNovoCard) fecharModalNovoCard();
+  });
+
+  // Alternador tipo de card
+  function alternarTipo(tipo) {
+    const ehNovo = tipo === 'Novo';
+    const bloco = document.getElementById('blocoModoCliente');
+    const campoBase = document.getElementById('campoBase');
+    if (bloco) bloco.style.display = ehNovo ? 'block' : 'none';
+    if (campoBase) campoBase.style.display = ehNovo ? 'none' : 'block';
+    if (!ehNovo) {
+      alternarModoCliente('existente');
+      const rad = document.querySelector('input[name="modo_cliente"][value="existente"]');
+      if (rad) rad.checked = true;
+    }
+  }
+
+  function alternarModoCliente(modo) {
+    const cx = document.getElementById('campoClienteExistente');
+    const cn = document.getElementById('campoClienteNovo');
+    if (cx) cx.style.display = modo === 'existente' ? 'grid' : 'none';
+    if (cn) cn.style.display = modo === 'novo' ? 'grid' : 'none';
+  }
+
+  // Filtro instantâneo no Kanban sem recarregar a tela
+  function filtrarKanban(termo) {
+    termo = termo.toLowerCase().trim();
+    const cards = document.querySelectorAll('.kanban-card');
+    cards.forEach(card => {
+      const texto = (card.dataset.search || '').toLowerCase();
+      card.style.display = (!termo || texto.includes(termo)) ? 'block' : 'none';
+    });
+  }
+
+  // Drag and Drop sem conflito com o clique de navegação
+  const board = document.getElementById('kanbanBoard');
+  let hasDragged = false;
+
+  board.querySelectorAll('.kanban-card').forEach(card => {
+    card.addEventListener('dragstart', (e) => {
+      hasDragged = true;
+      card.classList.add('dragging');
+      e.dataTransfer.setData('text/plain', card.dataset.id);
+    });
+
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      setTimeout(() => { hasDragged = false; }, 120);
+    });
+
+    card.addEventListener('click', (e) => {
+      if (hasDragged) {
+        e.preventDefault();
+        return;
+      }
+      if (card.dataset.href) {
+        window.location.href = card.dataset.href;
+      }
+    });
+  });
+
+  board.querySelectorAll('.kanban-col-body').forEach(coluna => {
+    coluna.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      coluna.classList.add('drag-over');
+    });
+
+    coluna.addEventListener('dragleave', (e) => {
+      if (!coluna.contains(e.relatedTarget)) {
+        coluna.classList.remove('drag-over');
+      }
+    });
+
+    coluna.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      coluna.classList.remove('drag-over');
+
+      const card = board.querySelector('.dragging');
+      if (!card) return;
+
+      const destino = coluna.dataset.coluna;
+      if (card.dataset.colunaOrigem === destino) return;
+
+      try {
+        const resposta = await fetch("{{ url_for('card_mover') }}", {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id_card: Number(card.dataset.id), coluna_destino: destino }),
+        });
+
+        const resultado = await resposta.json();
+        if (!resultado.sucesso) {
+          alert('Não foi possível mover o card de negociação.');
+          return;
+        }
+
+        card.dataset.colunaOrigem = destino;
+        coluna.appendChild(card);
+
+        // Atualiza contadores de cada coluna
+        board.querySelectorAll('.kanban-col').forEach(col => {
+          col.querySelector('.count').textContent = col.querySelectorAll('.kanban-card').length;
+        });
+      } catch (err) {
+        console.error(err);
+        alert('Erro ao comunicar com o servidor.');
+      }
+    });
+  });
+</script>
+{% endblock %}

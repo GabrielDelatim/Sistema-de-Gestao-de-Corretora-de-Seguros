@@ -1,0 +1,65 @@
+{% extends "layout/base.html" %}
+
+{% block titulo %}Registrar Sinistro{% endblock %}
+{% block migalha %}
+  <a href="{{ url_for('cliente_detalhe', id_cliente=cliente.id) }}" style="color:var(--text-faint);">{{ cliente.nome }}</a>
+  <span>·</span>
+  <a href="{{ url_for('seguro_detalhe', id_seguro=seguro.id) }}" style="color:var(--text-faint);">Apólice {{ seguro.numero_apolice }}</a>
+  <span>·</span>
+  <span>Novo Sinistro</span>
+{% endblock %}
+{% block cabecalho %}Abertura de Sinistro{% endblock %}
+
+{% block conteudo %}
+
+{% set v = valores if valores else sinistro %}
+
+<div class="card" style="max-width:680px; margin-bottom:var(--sp-4); background:var(--bg); border:1px solid var(--border);">
+  <div class="text-faint" style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em;">Apólice de Cobertura</div>
+  <div style="font-size:16px; font-weight:700; color:var(--text); margin-top:2px;">{{ seguro.ramo }} — Apólice {{ seguro.numero_apolice or '—' }}</div>
+  <div class="text-faint" style="font-size:12.5px;">{{ cliente.nome }} · Companhia: <strong>{{ seguro.seguradora }}</strong></div>
+</div>
+
+<form method="POST" class="card" style="max-width:680px;" novalidate>
+  <div class="card-header">
+    <h2>
+      {{ icone('alert', tamanho=18) }}
+      Dados da Ocorrência
+    </h2>
+    <span class="muted">* Campos obrigatórios</span>
+  </div>
+
+  <div class="form-grid">
+
+    <div class="field {{ 'has-error' if erros and erros.numero }}">
+      <label for="numero">Nº do Sinistro (Companhia Seguradora) *</label>
+      <input class="input" type="text" id="numero" name="numero" value="{{ v.numero if v else '' }}" placeholder="Ex: SIN-2026-988" required>
+      {% if erros and erros.numero %}<p class="error-msg">{{ erros.numero }}</p>{% endif %}
+    </div>
+
+    <div class="field {{ 'has-error' if erros and erros.data_ocorrencia }}">
+      <label for="data_ocorrencia">Data da Ocorrência do Evento *</label>
+      <input class="input" type="date" id="data_ocorrencia" name="data_ocorrencia"
+             value="{{ (v.data_ocorrencia.isoformat() if v.data_ocorrencia is not string else v.data_ocorrencia) if v and v.data_ocorrencia else '' }}" required>
+      {% if erros and erros.data_ocorrencia %}<p class="error-msg">{{ erros.data_ocorrencia }}</p>{% endif %}
+    </div>
+
+    <div class="field full">
+      <label for="terceiros">Terceiro(s) Envolvido(s) & Relato Inicial</label>
+      <textarea class="input" id="terceiros" name="terceiros" placeholder="Descreva os terceiros (veículo, placa, telefone) e breve resumo do ocorrido...">{{ v.terceiros if v else '' }}</textarea>
+      <p class="hint">Ao salvar, o sistema abrirá automaticamente o card de sinistro no quadro responsável.</p>
+    </div>
+  </div>
+
+  <div class="flex gap-3" style="justify-content:flex-end; border-top:1px solid var(--border); padding-top:var(--sp-4); margin-top:var(--sp-2);">
+    <a class="btn btn-secondary" href="{{ url_for('seguro_detalhe', id_seguro=seguro.id) }}">
+      Cancelar
+    </a>
+    <button class="btn btn-primary" type="submit">
+      {{ icone('check', tamanho=15) }}
+      Registrar Sinistro
+    </button>
+  </div>
+</form>
+
+{% endblock %}

@@ -1,0 +1,189 @@
+{% extends "layout/base.html" %}
+
+{% block titulo %}Seguro {{ seguro.numero_apolice or seguro.ramo }}{% endblock %}
+{% block migalha %}
+  <a href="{{ url_for('cliente_detalhe', id_cliente=cliente.id) }}" style="color:var(--text-faint);">{{ cliente.nome }}</a>
+  <span>·</span>
+  <span>Apólice {{ seguro.numero_apolice or seguro.ramo }}</span>
+{% endblock %}
+{% block cabecalho %}{{ seguro.ramo }} · {{ seguro.seguradora }}{% endblock %}
+
+{% block acoes_topbar %}
+  <a class="btn btn-secondary" href="{{ url_for('cliente_detalhe', id_cliente=cliente.id) }}">
+    Voltar ao Cliente
+  </a>
+
+  {% if card %}
+    <a class="btn btn-secondary" href="{{ url_for('card_detalhe', id_card=card.id) }}">
+      {{ icone('kanban', tamanho=15) }}
+      Ir para Card no Kanban
+    </a>
+  {% endif %}
+
+  <a class="btn btn-secondary" href="{{ url_for('seguro_editar', id_seguro=seguro.id) }}">
+    Alterar Apólice
+  </a>
+
+  <form method="POST" action="{{ url_for('seguro_deletar', id_seguro=seguro.id) }}"
+        onsubmit="return confirm('Deseja realmente excluir esta apólice e seus sinistros vinculados?');" style="display:inline;">
+    <button class="btn btn-danger" type="submit">
+      {{ icone('trash', tamanho=15) }}
+      Excluir
+    </button>
+  </form>
+{% endblock %}
+
+{% block conteudo %}
+
+  <!-- Detalhes da Apólice -->
+  <div class="card" style="margin-bottom:var(--sp-5);">
+    <div class="card-header">
+      <h2>
+        {{ icone('shield', tamanho=18) }}
+        Dados Contratuais da Apólice
+      </h2>
+      {% if seguro.status == 'Ativo' %}
+        <span class="badge {{ 'danger' if dias <= 15 else ('warning' if dias <= 30 else 'success') }}" style="font-size:12px; padding:4px 10px;">
+          {% if dias < 0 %}Vencida há {{ -dias }} dias
+          {% elif dias == 0 %}Vence Hoje!
+          {% else %}Vence em {{ dias }} dias{% endif %}
+        </span>
+      {% else %}
+        <span class="badge info">{{ seguro.status }}</span>
+      {% endif %}
+    </div>
+
+    {% set comissao_reais = (seguro.premio * (seguro.comissao or 0) / 100) if seguro.premio else 0 %}
+
+    <div class="dados-grid">
+      <div class="dado">
+        <div class="rotulo">Item Segurado</div>
+        <div class="valor" style="font-weight:600;">{{ seguro.item or '—' }}</div>
+      </div>
+      <div class="dado">
+        <div class="rotulo">Seguradora</div>
+        <div class="valor">{{ seguro.seguradora }}</div>
+      </div>
+      <div class="dado">
+        <div class="rotulo">Nº da Apólice</div>
+        <div class="valor" style="font-family:monospace; font-weight:600;">{{ seguro.numero_apolice or 'Não informado' }}</div>
+      </div>
+      <div class="dado">
+        <div class="rotulo">Prêmio Total (Custo)</div>
+        <div class="valor" style="font-size:16px; font-weight:700; color:var(--text);">{{ seguro.premio|moeda }}</div>
+      </div>
+      <div class="dado">
+        <div class="rotulo">Comissão da Corretora</div>
+        <div class="valor" style="color:var(--accent); font-weight:600;">
+          {{ seguro.comissao }}%
+          <span style="font-size:12px; font-weight:400; color:var(--text-faint);">({{ comissao_reais|moeda }})</span>
+        </div>
+      </div>
+      <div class="dado">
+        <div class="rotulo">Forma de Pagamento</div>
+        <div class="valor">{{ seguro.forma_pagamento or '—' }}</div>
+      </div>
+      <div class="dado" style="grid-column:1/-1;">
+        <div class="rotulo">Período de Vigência Contratual</div>
+        <div class="valor">
+          <strong>{{ seguro.vigencia_inicio|data_br }}</strong> até <strong>{{ seguro.vigencia_fim|data_br }}</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid; grid-template-columns: 1fr 340px; gap:var(--sp-5); align-items:start;">
+
+    <!-- Sinistros Vinculados (RF06) -->
+    <div class="card">
+      <div class="card-header">
+        <h2>
+          {{ icone('alert', tamanho=18) }}
+          Sinistros Vinculados a esta Apólice
+        </h2>
+        {% if usuario_logado.perfil in ['Administrador', 'Área Sinistros'] %}
+          <a class="btn btn-primary btn-sm" href="{{ url_for('sinistro_novo', id_seguro=seguro.id) }}">
+            {{ icone('plus', tamanho=13) }}
+            Registrar Sinistro
+          </a>
+        {% endif %}
+      </div>
+
+      {% if sinistros %}
+        <div class="table-wrap" style="border:none;">
+          <table>
+            <thead>
+              <tr>
+                <th>Nº Sinistro</th>
+                <th>Data Ocorrência</th>
+                <th>Terceiros</th>
+                <th>Situação</th>
+                <th style="text-align:right;">Ação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for s in sinistros %}
+                <tr>
+                  <td class="cell-primary" style="font-family:monospace;">#{{ s.numero or s.id }}</td>
+                  <td>{{ s.data_ocorrencia|data_br }}</td>
+                  <td class="cell-muted">{{ s.terceiros or '—' }}</td>
+                  <td><span class="badge info">{{ s.status }}</span></td>
+                  <td class="actions">
+                    <a class="btn btn-secondary btn-sm" href="{{ url_for('sinistro_detalhe', id_sinistro=s.id) }}">
+                      Abrir Sinistro
+                    </a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state" style="padding:var(--sp-5);">
+          {{ icone('check', tamanho=36) }}
+          <h3>Nenhum sinistro registrado</h3>
+          <p>Esta apólice não possui histórico de sinistros ou avarias em andamento.</p>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Anexos da Apólice (RF07) -->
+    <div class="card">
+      <div class="card-header">
+        <h2>
+          {{ icone('attachment', tamanho=18) }}
+          Arquivos & Anexos
+        </h2>
+      </div>
+
+      {% if seguro.anexos %}
+        <ul style="display:flex; flex-direction:column; gap:8px; margin-bottom:var(--sp-4);">
+          {% for a in seguro.anexos %}
+            <li style="display:flex; align-items:center; justify-content:space-between; padding:8px 10px; background:var(--bg); border-radius:var(--radius-sm); border:1px solid var(--border-subtle); font-size:12.5px;">
+              <a href="{{ url_for('anexo', nome_arquivo=a.nome) }}" target="_blank" style="color:var(--accent-light); font-weight:600; word-break:break-all;">
+                {{ a.nome }}
+              </a>
+              {% if a.importante %}
+                <span class="badge warning" style="font-size:10px;">Importante</span>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-faint" style="font-size:13px; margin-bottom:var(--sp-4);">Nenhum documento anexado.</p>
+      {% endif %}
+
+      <form method="POST" action="{{ url_for('seguro_anexar', id_seguro=seguro.id) }}" enctype="multipart/form-data">
+        <div class="field" style="margin-bottom:var(--sp-3);">
+          <label for="arquivo">Anexar Apólice / Condições Gerais</label>
+          <input class="input" type="file" id="arquivo" name="arquivo" required style="padding:6px;">
+        </div>
+        <button class="btn btn-secondary btn-sm" type="submit" style="width:100%;">
+          Fazer Upload
+        </button>
+      </form>
+    </div>
+
+  </div>
+
+{% endblock %}

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Entrar · {{ nome_corretora }}</title>
+<script>
+  (function() {
+    try {
+      var saved = localStorage.getItem('corretora_theme') || localStorage.getItem('ncm_theme');
+      if (!saved) {
+        saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', saved);
+    } catch(e) {}
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+<style>
+  .login-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-4);
+    background: var(--bg);
+    position: relative;
+    transition: background-color 0.2s ease;
+  }
+
+  .theme-corner-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+  }
+
+  .login-card {
+    width: 100%;
+    max-width: 380px;
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: var(--sp-5) var(--sp-5) var(--sp-4);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border);
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .login-brand {
+    text-align: center;
+    margin-bottom: var(--sp-4);
+  }
+
+  .login-mark {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: 0.04em;
+    margin: 0 auto var(--sp-2);
+  }
+
+  .login-brand h1 {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .login-brand p {
+    font-size: 12.5px;
+    color: var(--text-muted);
+  }
+
+  .field {
+    margin-bottom: var(--sp-3);
+  }
+
+  .field label {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 5px;
+  }
+
+  .input-shell {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .input-shell .input {
+    width: 100%;
+    padding-right: 38px;
+  }
+
+  .input-shell .adornment {
+    position: absolute;
+    right: 8px;
+    background: transparent;
+    border: none;
+    color: var(--text-faint);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-xs);
+  }
+
+  .input-shell .adornment:hover {
+    color: var(--text);
+  }
+
+  .info-hint-box {
+    margin-top: var(--sp-4);
+    padding: var(--sp-3);
+    background: var(--bg-subtle);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    font-size: 11.5px;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+{% from "layout/icones.html" import icone %}
+
+<div class="login-wrapper">
+
+  <!-- Botão de tema no canto da tela -->
+  <div class="theme-corner-btn">
+    <button class="theme-toggle-btn" id="themeToggleBtn" type="button" aria-label="Alternar tema" title="Alternar tema claro/escuro">
+      <span class="icon-sun">{{ icone('sun', tamanho=16) }}</span>
+      <span class="icon-moon">{{ icone('moon', tamanho=16) }}</span>
+    </button>
+  </div>
+
+  <div class="login-card">
+
+    <div class="login-brand">
+      <div class="login-mark" aria-hidden="true">
+        {{ icone('shield', tamanho=22) }}
+      </div>
+      <h1>{{ nome_corretora }}</h1>
+      <p>Sistema de Gestão Integrada</p>
+    </div>
+
+    <!-- Mensagens Flash -->
+    {% with mensagens = get_flashed_messages(with_categories=true) %}
+      {% if mensagens %}
+        {% for categoria, texto in mensagens %}
+          <div class="flash-message {{ categoria }}" style="margin-bottom:var(--sp-3);">
+            <div>{{ texto }}</div>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('login') }}" novalidate>
+      <div class="field">
+        <label for="username">Usuário</label>
+        <input class="input" type="text" id="username" name="username" autocomplete="username" placeholder="Seu login" required autofocus>
+      </div>
+
+      <div class="field">
+        <label for="password">Senha</label>
+        <div class="input-shell">
+          <input class="input" type="password" id="password" name="password" autocomplete="current-password" placeholder="••••••••" required>
+          <button type="button" class="adornment" id="toggleBtn" aria-label="Mostrar/ocultar senha">
+            <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width:100%; padding:9px; margin-top:var(--sp-2); font-weight:600;">
+        Entrar no Sistema
+      </button>
+    </form>
+
+    {% if exibir_aviso_admin %}
+      <div class="info-hint-box">
+        Acesso inicial padrão:<br>
+        Usuário: <strong>admin</strong> · Senha: <strong>admin123</strong>
+      </div>
+    {% endif %}
+
+  </div>
+</div>
+
+<script>
+  // Alterna visibilidade da senha
+  document.getElementById('toggleBtn')?.addEventListener('click', () => {
+    const campo = document.getElementById('password');
+    campo.type = campo.type === 'password' ? 'text' : 'password';
+  });
+
+  // Alternador de tema
+  document.getElementById('themeToggleBtn')?.addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme') || 'light';
+    const next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    try {
+      localStorage.setItem('corretora_theme', next);
+    } catch(e) {}
+  });
+</script>
+
+</body>
+</html>

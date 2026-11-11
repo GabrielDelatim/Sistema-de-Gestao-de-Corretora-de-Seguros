@@ -1,0 +1,110 @@
+{% extends "layout/base.html" %}
+
+{% block titulo %}{{ 'Editar Cliente' if cliente else 'Novo Cliente' }}{% endblock %}
+{% block migalha %}
+  <a href="{{ url_for('clientes') }}" style="color:var(--text-faint);">Clientes</a>
+  <span>·</span>
+  <span>{{ 'Editar' if cliente else 'Novo' }}</span>
+{% endblock %}
+{% block cabecalho %}{{ 'Editar Dados do Cliente' if cliente else 'Cadastrar Novo Cliente' }}{% endblock %}
+
+{% block conteudo %}
+
+{% set v = valores if valores else cliente %}
+
+<form method="POST" class="card" style="max-width:840px;" novalidate>
+  <div class="card-header">
+    <h2>
+      {{ icone('clientes', tamanho=18) }}
+      Informações Principais
+    </h2>
+    <span class="muted">* Campos obrigatórios</span>
+  </div>
+
+  <div class="form-grid">
+
+    <!-- Identificação -->
+    <div class="field full {{ 'has-error' if erros and erros.nome }}">
+      <label for="nome">Nome Completo / Razão Social *</label>
+      <input class="input" type="text" id="nome" name="nome" value="{{ v.nome if v else '' }}" placeholder="Ex: João Pereira Lima ou Indústria Alfa Ltda." required>
+      {% if erros and erros.nome %}<p class="error-msg">{{ erros.nome }}</p>{% endif %}
+    </div>
+
+    <div class="field {{ 'has-error' if erros and erros.documento }}">
+      <label for="documento">CPF ou CNPJ *</label>
+      <input class="input" type="text" id="documento" name="documento" value="{{ v.documento if v else '' }}" placeholder="000.000.000-00 ou 00.000.000/0001-00" required>
+      {% if erros and erros.documento %}<p class="error-msg">{{ erros.documento }}</p>{% endif %}
+    </div>
+
+    <div class="field">
+      <label for="tipo">Tipo de Pessoa</label>
+      <select class="input" id="tipo" name="tipo">
+        <option value="PF" {{ 'selected' if v and v.tipo == 'PF' }}>Pessoa Física (PF)</option>
+        <option value="PJ" {{ 'selected' if v and v.tipo == 'PJ' }}>Pessoa Jurídica (PJ)</option>
+      </select>
+    </div>
+
+    <!-- Comercial & Status -->
+    <div class="field {{ 'has-error' if erros and erros.comercial }}">
+      <label for="comercial">Comercial Responsável (Corretor) *</label>
+      <select class="input" id="comercial" name="comercial">
+        {% for com in comerciais %}
+          <option value="{{ com }}" {{ 'selected' if v and v.comercial == com }}>{{ com }}</option>
+        {% endfor %}
+      </select>
+      {% if erros and erros.comercial %}<p class="error-msg">{{ erros.comercial }}</p>{% endif %}
+      <p class="hint">Define a qual carteira e quadro Kanban este cliente pertencerá.</p>
+    </div>
+
+    <div class="field">
+      <label for="origem">Origem da Captação</label>
+      <input class="input" type="text" id="origem" name="origem" value="{{ v.origem if v else '' }}" placeholder="Ex: Indicação, Site, Prospecção Ativa">
+    </div>
+
+    <div class="field">
+      <label for="status">Situação Cadastral</label>
+      <select class="input" id="status" name="status">
+        <option value="Ativo" {{ 'selected' if v and v.status == 'Ativo' }}>Ativo (Monitorado)</option>
+        <option value="Inativo" {{ 'selected' if v and v.status == 'Inativo' }}>Inativo</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="vinculos">Vínculos de Referência</label>
+      <input class="input" type="text" id="vinculos" name="vinculos" value="{{ v.vinculos if v else '' }}" placeholder="Ex: Cônjuge, Sócio, Matriz/Filial">
+    </div>
+
+    <!-- Contato -->
+    <div class="field">
+      <label for="telefone">Telefone / WhatsApp</label>
+      <input class="input" type="tel" id="telefone" name="telefone" value="{{ v.telefone if v else '' }}" placeholder="(11) 98888-0000">
+    </div>
+
+    <div class="field">
+      <label for="email">E-mail de Contato</label>
+      <input class="input" type="email" id="email" name="email" value="{{ v.email if v else '' }}" placeholder="cliente@dominio.com.br">
+    </div>
+
+    <div class="field full">
+      <label for="endereco">Endereço Completo</label>
+      <input class="input" type="text" id="endereco" name="endereco" value="{{ v.endereco if v else '' }}" placeholder="Logradouro, número, complemento, bairro, cidade/UF">
+    </div>
+
+    <div class="field full">
+      <label for="descricao">Observações Importantes</label>
+      <textarea class="input" id="descricao" name="descricao" placeholder="Histórico prévio, exigências específicas ou preferências de comunicação...">{{ v.descricao if v else '' }}</textarea>
+    </div>
+  </div>
+
+  <div class="flex gap-3" style="justify-content:flex-end; border-top:1px solid var(--border); padding-top:var(--sp-4); margin-top:var(--sp-2);">
+    <a class="btn btn-secondary" href="{{ url_for('cliente_detalhe', id_cliente=cliente.id) if cliente else url_for('clientes') }}">
+      Cancelar
+    </a>
+    <button class="btn btn-primary" type="submit">
+      {{ icone('check', tamanho=15) }}
+      {{ 'Salvar Alterações' if cliente else 'Cadastrar Cliente' }}
+    </button>
+  </div>
+</form>
+
+{% endblock %}

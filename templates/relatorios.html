@@ -1,0 +1,166 @@
+{% extends "layout/base.html" %}
+
+{% block titulo %}Relatórios Gerenciais{% endblock %}
+{% block migalha %}Exportação & Análise{% endblock %}
+{% block cabecalho %}Relatórios e Extração de Dados{% endblock %}
+
+{% block conteudo %}
+
+  <!-- Formulário de Filtro e Geração (RF24) -->
+  <form method="GET" class="card" style="margin-bottom:var(--sp-4);">
+    <div class="card-header">
+      <h2>
+        {{ icone('relatorios', tamanho=18) }}
+        Parâmetros de Filtragem
+      </h2>
+      <span class="muted">Gera visualização e arquivo para Excel</span>
+    </div>
+
+    <div class="flex gap-4" style="align-items:flex-end; flex-wrap:wrap; margin-bottom:var(--sp-4);">
+      <div class="field" style="margin:0;">
+        <label for="inicio">Vencimento a partir de</label>
+        <input class="input" type="date" id="inicio" name="inicio" value="{{ inicio }}">
+      </div>
+      <div class="field" style="margin:0;">
+        <label for="fim">Vencimento até</label>
+        <input class="input" type="date" id="fim" name="fim" value="{{ fim }}">
+      </div>
+    </div>
+
+    <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--sp-3);">
+      <div class="field" style="margin-bottom:0;">
+        <label for="tipo">Tipo de Cliente</label>
+        <select class="input" id="tipo" name="tipo">
+          <option value="">Todos</option>
+          <option value="PF" {{ 'selected' if filtros.tipo == 'PF' }}>Pessoa Física (PF)</option>
+          <option value="PJ" {{ 'selected' if filtros.tipo == 'PJ' }}>Pessoa Jurídica (PJ)</option>
+        </select>
+      </div>
+
+      <div class="field" style="margin-bottom:0;">
+        <label for="status">Status do Cliente</label>
+        <select class="input" id="status" name="status">
+          <option value="">Todos</option>
+          <option value="Ativo" {{ 'selected' if filtros.status == 'Ativo' }}>Ativo</option>
+          <option value="Inativo" {{ 'selected' if filtros.status == 'Inativo' }}>Inativo</option>
+        </select>
+      </div>
+
+      <div class="field" style="margin-bottom:0;">
+        <label for="origem">Origem</label>
+        <select class="input" id="origem" name="origem">
+          <option value="">Todas</option>
+          {% for o in opcoes_origem %}<option value="{{ o }}" {{ 'selected' if filtros.origem == o }}>{{ o }}</option>{% endfor %}
+        </select>
+      </div>
+
+      <div class="field" style="margin-bottom:0;">
+        <label for="comercial">Comercial</label>
+        <select class="input" id="comercial" name="comercial">
+          <option value="">Todos</option>
+          {% for c in opcoes_comercial %}<option value="{{ c }}" {{ 'selected' if filtros.comercial == c }}>{{ c }}</option>{% endfor %}
+        </select>
+      </div>
+
+      <div class="field" style="margin-bottom:0;">
+        <label for="ramo">Ramo de Seguro</label>
+        <select class="input" id="ramo" name="ramo">
+          <option value="">Todos</option>
+          {% for r in opcoes_ramo %}<option value="{{ r }}" {{ 'selected' if filtros.ramo == r }}>{{ r }}</option>{% endfor %}
+        </select>
+      </div>
+
+      <div class="field" style="margin-bottom:0;">
+        <label for="seguradora">Companhia Seguradora</label>
+        <select class="input" id="seguradora" name="seguradora">
+          <option value="">Todas</option>
+          {% for s in opcoes_seguradora %}<option value="{{ s }}" {{ 'selected' if filtros.seguradora == s }}>{{ s }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="flex gap-3" style="justify-content:flex-end; margin-top:var(--sp-4); padding-top:var(--sp-3); border-top:1px solid var(--border-subtle);">
+      <a class="btn btn-ghost" href="{{ url_for('relatorios') }}">Limpar</a>
+      <button class="btn btn-primary" type="submit">
+        {{ icone('search', tamanho=15) }}
+        Filtrar Relatório
+      </button>
+      <a class="btn btn-secondary" href="{{ url_for('relatorio_exportar', inicio=inicio, fim=fim, **filtros) }}">
+        ⬇️ Exportar CSV (Excel)
+      </a>
+    </div>
+  </form>
+
+  <!-- Resumo da Consulta -->
+  {% if linhas %}
+    {% set soma_premios = linhas | map(attribute='seguro') | map(attribute='premio') | sum %}
+    {% set media_premio = soma_premios / (linhas|length) if linhas else 0 %}
+    <div class="stat-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom:var(--sp-4);">
+      <div class="stat-card">
+        <div class="label">Apólices Listadas</div>
+        <div class="value" style="font-size:22px;">{{ linhas|length }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Volume Total de Prêmios</div>
+        <div class="value" style="font-size:22px; color:var(--accent);">{{ soma_premios|moeda }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Ticket Médio por Apólice</div>
+        <div class="value" style="font-size:22px; color:var(--text-muted);">{{ media_premio|moeda }}</div>
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- Tabela de Resultados -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Cliente Segurado</th>
+          <th>Tipo</th>
+          <th>Comercial</th>
+          <th>Ramo</th>
+          <th>Seguradora</th>
+          <th>Nº Apólice</th>
+          <th>Período Vigência</th>
+          <th>Prêmio</th>
+          <th style="text-align:right;">Ação</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in linhas %}
+          <tr>
+            <td class="cell-primary">
+              <a href="{{ url_for('cliente_detalhe', id_cliente=l.cadastro.id) }}" style="font-weight:600; color:var(--text);">
+                {{ l.cadastro.nome }}
+              </a>
+            </td>
+            <td><span class="badge {{ 'info' if l.cadastro.tipo == 'PF' else 'purple' }}">{{ l.cadastro.tipo }}</span></td>
+            <td class="cell-muted">{{ l.cadastro.comercial }}</td>
+            <td class="cell-primary">{{ l.seguro.ramo }}</td>
+            <td class="cell-muted">{{ l.seguro.seguradora }}</td>
+            <td class="cell-muted" style="font-family:monospace;">{{ l.seguro.numero_apolice or '—' }}</td>
+            <td>{{ l.seguro.vigencia_inicio|data_br }} a {{ l.seguro.vigencia_fim|data_br }}</td>
+            <td style="font-weight:600; color:var(--accent);">{{ l.seguro.premio|moeda }}</td>
+            <td class="actions">
+              <a class="btn btn-secondary btn-sm" href="{{ url_for('seguro_detalhe', id_seguro=l.seguro.id) }}">
+                Abrir
+              </a>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="9">
+              <div class="empty-state">
+                {{ icone('relatorios', tamanho=36) }}
+                <h3>Nenhum resultado para os filtros aplicados</h3>
+                <p>Tente expandir o período de vigência ou selecionar outras opções.</p>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+{% endblock %}

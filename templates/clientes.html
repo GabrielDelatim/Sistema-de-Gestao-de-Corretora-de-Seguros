@@ -1,0 +1,157 @@
+{% extends "layout/base.html" %}
+
+{% block titulo %}Clientes{% endblock %}
+{% block migalha %}Carteira Geral{% endblock %}
+{% block cabecalho %}Pesquisa e Gestão de Clientes{% endblock %}
+
+{% block acoes_topbar %}
+  <a class="btn btn-primary" href="{{ url_for('cliente_novo') }}">
+    {{ icone('plus', tamanho=16) }}
+    Novo Cliente
+  </a>
+{% endblock %}
+
+{% block conteudo %}
+
+  <!-- Formulário de Filtro & Pesquisa Avançada (RF03) -->
+  <form method="GET" action="{{ url_for('clientes') }}" class="card" style="margin-bottom: var(--sp-4);">
+
+    <div class="flex gap-4" style="align-items:flex-end; flex-wrap:wrap; margin-bottom: var(--sp-4);">
+      <div class="field" style="flex:1; min-width:280px; margin:0;">
+        <label for="q">Buscar por Nome, Razão Social ou CPF/CNPJ</label>
+        <div class="search-box" style="max-width:none;">
+          {{ icone('search') }}
+          <input class="input" type="text" id="q" name="q" value="{{ termo }}" placeholder="Digite o nome do cliente ou documento...">
+        </div>
+      </div>
+
+      <div class="field" style="margin:0;">
+        <label>Modo de Busca</label>
+        <div class="flex gap-3" style="padding-top:7px;">
+          <label class="flex items-center gap-2" style="font-size:13px; cursor:pointer;">
+            <input type="radio" name="modo" value="comeca_com" {{ 'checked' if modo == 'comeca_com' }}> Começa com
+          </label>
+          <label class="flex items-center gap-2" style="font-size:13px; cursor:pointer;">
+            <input type="radio" name="modo" value="contem" {{ 'checked' if modo == 'contem' }}> Contém
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--sp-3);">
+      <div class="field" style="margin-bottom:0;">
+        <label for="tipo">Pessoa</label>
+        <select class="input" id="tipo" name="tipo">
+          <option value="">Todas</option>
+          <option value="PF" {{ 'selected' if filtros.tipo == 'PF' }}>Pessoa Física (PF)</option>
+          <option value="PJ" {{ 'selected' if filtros.tipo == 'PJ' }}>Pessoa Jurídica (PJ)</option>
+        </select>
+      </div>
+
+      <div class="field" style="margin-bottom:0;">
+        <label for="status">Status</label>
+        <select class="input" id="status" name="status">
+          <option value="">Todos</option>
+          <option value="Ativo" {{ 'selected' if filtros.status == 'Ativo' }}>Ativo</option>
+          <option value="Inativo" {{ 'selected' if filtros.status == 'Inativo' }}>Inativo</option>
+        </select>
+      </div>
+
+      <div class="field" style="margin-bottom:0;">
+        <label for="origem">Origem</label>
+        <select class="input" id="origem" name="origem">
+          <option value="">Todas as origens</option>
+          {% for opcao in opcoes_origem %}
+            <option value="{{ opcao }}" {{ 'selected' if filtros.origem == opcao }}>{{ opcao }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field" style="margin-bottom:0;">
+        <label for="comercial">Comercial</label>
+        <select class="input" id="comercial" name="comercial">
+          <option value="">Todos os corretores</option>
+          {% for opcao in opcoes_comercial %}
+            <option value="{{ opcao }}" {{ 'selected' if filtros.comercial == opcao }}>{{ opcao }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field" style="margin-bottom:0;">
+        <label for="vinculos">Vínculo</label>
+        <input class="input" type="text" id="vinculos" name="vinculos" value="{{ filtros.vinculos }}" placeholder="Ex: filial, cônjuge">
+      </div>
+    </div>
+
+    <div class="flex gap-3" style="justify-content:flex-end; margin-top:var(--sp-4); padding-top:var(--sp-3); border-top:1px solid var(--border-subtle);">
+      <a class="btn btn-ghost" href="{{ url_for('clientes') }}">Limpar Filtros</a>
+      <button class="btn btn-primary" type="submit">
+        {{ icone('search', tamanho=15) }}
+        Filtrar Clientes
+      </button>
+    </div>
+  </form>
+
+  <!-- Lista de Clientes -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Cliente / Razão Social</th>
+          <th>Documento</th>
+          <th>Tipo</th>
+          <th>Comercial Responsável</th>
+          <th>Origem</th>
+          <th>Status</th>
+          <th style="text-align:right;">Ação</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in clientes %}
+          <tr>
+            <td class="cell-primary">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div style="width:30px; height:30px; border-radius:50%; background:var(--accent-soft); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:11.5px; font-weight:700;">
+                  {{ c.nome[:2]|upper }}
+                </div>
+                <div>
+                  <a href="{{ url_for('cliente_detalhe', id_cliente=c.id) }}" style="font-weight:600; color:var(--text);">
+                    {{ c.nome }}
+                  </a>
+                  {% if c.email %}
+                    <div style="font-size:11.5px; color:var(--text-faint);">{{ c.email }}</div>
+                  {% endif %}
+                </div>
+              </div>
+            </td>
+            <td class="cell-muted" style="font-family:monospace; font-size:12.5px;">{{ c.documento }}</td>
+            <td>
+              <span class="badge {{ 'info' if c.tipo == 'PF' else 'purple' }}">{{ c.tipo }}</span>
+            </td>
+            <td class="cell-muted">{{ c.comercial }}</td>
+            <td class="cell-muted">{{ c.origem }}</td>
+            <td>
+              <span class="badge {{ 'success' if c.status == 'Ativo' else 'neutral' }}">{{ c.status }}</span>
+            </td>
+            <td class="actions">
+              <a class="btn btn-secondary btn-sm" href="{{ url_for('cliente_detalhe', id_cliente=c.id) }}">
+                Ver Ficha
+              </a>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="7">
+              <div class="empty-state">
+                {{ icone('search', tamanho=40) }}
+                <h3>Nenhum cliente localizado</h3>
+                <p>Tente alterar os termos de busca ou filtros selecionados.</p>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+{% endblock %}

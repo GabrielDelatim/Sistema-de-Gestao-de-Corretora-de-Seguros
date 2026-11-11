@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Definir Nova Senha · {{ nome_corretora }}</title>
+<script>
+  (function() {
+    try {
+      var saved = localStorage.getItem('corretora_theme') || localStorage.getItem('ncm_theme');
+      if (!saved) {
+        saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', saved);
+    } catch(e) {}
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+<style>
+  .onboard-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-4);
+    background: var(--bg);
+    position: relative;
+    transition: background-color 0.2s ease;
+  }
+
+  .theme-corner-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+  }
+
+  .onboard-card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: var(--sp-5);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border);
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .onboard-header {
+    text-align: center;
+    margin-bottom: var(--sp-4);
+  }
+
+  .onboard-badge {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius);
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid var(--accent-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto var(--sp-2);
+  }
+
+  .onboard-header h1 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .onboard-header p {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  .field {
+    margin-bottom: var(--sp-3);
+  }
+
+  .field label {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 5px;
+  }
+
+  .security-notice {
+    padding: var(--sp-3);
+    background: var(--warning-soft);
+    border: 1px solid var(--warning-border);
+    border-radius: var(--radius-sm);
+    color: var(--warning);
+    font-size: 12px;
+    margin-bottom: var(--sp-4);
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    line-height: 1.5;
+  }
+
+  .security-notice svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+</style>
+</head>
+<body>
+
+{% from "layout/icones.html" import icone %}
+
+<div class="onboard-wrapper">
+
+  <div class="theme-corner-btn">
+    <button class="theme-toggle-btn" id="themeToggleBtn" type="button" aria-label="Alternar tema" title="Alternar tema claro/escuro">
+      <span class="icon-sun">{{ icone('sun', tamanho=16) }}</span>
+      <span class="icon-moon">{{ icone('moon', tamanho=16) }}</span>
+    </button>
+  </div>
+
+  <div class="onboard-card">
+
+    <div class="onboard-header">
+      <div class="onboard-badge">
+        {{ icone('shield', tamanho=22) }}
+      </div>
+      <h1>Primeiro Acesso ao Sistema</h1>
+      <p>Defina uma senha pessoal e segura para o <strong>Administrador</strong> antes de iniciar o uso da corretora.</p>
+    </div>
+
+    <!-- Mensagens Flash -->
+    {% with mensagens = get_flashed_messages(with_categories=true) %}
+      {% if mensagens %}
+        {% for categoria, texto in mensagens %}
+          <div class="flash-message {{ categoria }}" style="margin-bottom:var(--sp-3);">
+            <div>{{ texto }}</div>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="security-notice">
+      {{ icone('alert', tamanho=16) }}
+      <div>
+        Por motivos de segurança, a senha padrão (<code>admin123</code>) precisa ser substituída no primeiro acesso.
+      </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('primeiro_acesso') }}">
+
+      <div class="field">
+        <label for="nova_senha">Nova Senha *</label>
+        <input class="input" type="password" id="nova_senha" name="nova_senha" required autofocus
+               placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+      </div>
+
+      <div class="field">
+        <label for="confirmacao">Confirme a Nova Senha *</label>
+        <input class="input" type="password" id="confirmacao" name="confirmacao" required
+               placeholder="Digite novamente a nova senha" autocomplete="new-password">
+      </div>
+
+      <div class="flex items-center justify-between" style="margin-top:var(--sp-4);">
+        <a class="btn btn-secondary btn-sm" href="{{ url_for('logout') }}">Cancelar e Sair</a>
+        <button class="btn btn-primary" type="submit">
+          {{ icone('check', tamanho=16) }}
+          Salvar Nova Senha
+        </button>
+      </div>
+
+    </form>
+
+  </div>
+</div>
+
+<script>
+  // Alternador de tema
+  document.getElementById('themeToggleBtn')?.addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme') || 'light';
+    const next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    try {
+      localStorage.setItem('corretora_theme', next);
+    } catch(e) {}
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,70 @@
+{% extends "layout/base.html" %}
+
+{% block titulo %}{{ 'Editar Usuário' if usuario else 'Novo Usuário' }}{% endblock %}
+{% block migalha %}
+  <a href="{{ url_for('usuarios') }}" style="color:var(--text-faint);">Usuários</a>
+  <span>·</span>
+  <span>{{ 'Editar' if usuario else 'Novo' }}</span>
+{% endblock %}
+{% block cabecalho %}{{ 'Editar Dados do Usuário' if usuario else 'Cadastrar Novo Usuário' }}{% endblock %}
+
+{% block conteudo %}
+
+{% set v = valores if valores else usuario %}
+
+<form method="POST" class="card" style="max-width:580px;" novalidate>
+  <div class="card-header">
+    <h2>
+      {{ icone('usuarios', tamanho=18) }}
+      Credenciais e Perfil de Acesso
+    </h2>
+  </div>
+
+  <div class="form-grid">
+    <div class="field full">
+      <label for="nome">Nome Completo do Usuário *</label>
+      <input class="input" type="text" id="nome" name="nome" value="{{ v.nome if v else '' }}" placeholder="Ex: Roberto Silva" required>
+    </div>
+
+    <div class="field">
+      <label for="login">Login de Acesso *</label>
+      <input class="input" type="text" id="login" name="login" value="{{ v.login if v else '' }}" placeholder="roberto.silva" required>
+    </div>
+
+    <div class="field">
+      <label for="senha">Senha de Acesso</label>
+      <input class="input" type="password" id="senha" name="senha" placeholder="{{ 'Em branco para não alterar' if usuario else 'Definir senha inicial' }}">
+    </div>
+
+    <div class="field">
+      <label for="perfil">Perfil de Permissão</label>
+      <select class="input" id="perfil" name="perfil">
+        {% for p in perfis %}
+          <option value="{{ p }}" {{ 'selected' if v and v.perfil == p }}>{{ p }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="status">Status do Acesso</label>
+      <select class="input" id="status" name="status">
+        <option value="Ativo" {{ 'selected' if v and v.status == 'Ativo' }}>Ativo (Liberado)</option>
+        <option value="Inativo" {{ 'selected' if v and v.status == 'Inativo' }}>Inativo (Bloqueado)</option>
+      </select>
+    </div>
+  </div>
+
+  <p class="hint" style="border-top:1px solid var(--border-subtle); padding-top:var(--sp-3); margin-top:var(--sp-2);">
+    As permissões e visualização dos quadros Kanban são automáticas de acordo com o perfil selecionado.
+  </p>
+
+  <div class="flex gap-3" style="justify-content:flex-end; margin-top:var(--sp-4);">
+    <a class="btn btn-secondary" href="{{ url_for('usuarios') }}">Cancelar</a>
+    <button class="btn btn-primary" type="submit">
+      {{ icone('check', tamanho=15) }}
+      {{ 'Salvar Usuário' if usuario else 'Criar Usuário' }}
+    </button>
+  </div>
+</form>
+
+{% endblock %}

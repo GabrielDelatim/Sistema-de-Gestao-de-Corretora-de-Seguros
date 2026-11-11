@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block titulo %}Início{% endblock %} · {{ nome_corretora }}</title>
+<!-- Script imediato para evitar flash de tela clara/escura (FOUC) -->
+<script>
+  (function() {
+    try {
+      var saved = localStorage.getItem('corretora_theme') || localStorage.getItem('ncm_theme');
+      if (!saved) {
+        saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', saved);
+    } catch(e) {}
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+{% block estilos_extra %}{% endblock %}
+</head>
+<body>
+
+{% from "layout/icones.html" import icone %}
+
+<div class="app-shell">
+
+  <!-- Barra Lateral (Sidebar) -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="mark">{{ nome_corretora[:2]|upper }}</div>
+      <div class="name">
+        {{ nome_corretora }}
+        <small>Gestão de Seguros</small>
+      </div>
+    </div>
+
+    <nav class="nav-group">
+      {% for item in itens_menu %}
+        <a class="nav-link {{ 'active' if pagina_ativa == item.chave }}" href="{{ url_for(item.rota) }}">
+          {{ icone(item.icone) }}
+          <span>{{ item.rotulo }}</span>
+          {% if item.chave == 'quadros' and total_pendentes and total_pendentes > 0 %}
+            <span class="nav-counter" title="{{ total_pendentes }} tarefa(s) pendente(s)">{{ total_pendentes }}</span>
+          {% endif %}
+        </a>
+      {% endfor %}
+    </nav>
+
+    {% if itens_menu_admin %}
+      <div class="nav-group">
+        <div class="nav-label">Administração</div>
+        {% for item in itens_menu_admin %}
+          <a class="nav-link {{ 'active' if pagina_ativa == item.chave }}" href="{{ url_for(item.rota) }}">
+            {{ icone(item.icone) }}
+            <span>{{ item.rotulo }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="sidebar-footer">
+      {% if usuario_logado %}
+        <div class="user-chip">
+          <div class="avatar">{{ usuario_logado.nome[:2]|upper }}</div>
+          <div class="info">
+            <strong>{{ usuario_logado.nome }}</strong>
+            <span>{{ usuario_logado.perfil }}</span>
+          </div>
+        </div>
+      {% endif %}
+      <a class="logout-btn" href="{{ url_for('logout') }}" title="Encerrar sessão">
+        {{ icone('logout', tamanho=14) }}
+        Sair
+      </a>
+    </div>
+  </aside>
+
+  <!-- Fundo escurecido para mobile -->
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <!-- Área Principal -->
+  <div class="app-main">
+    <header class="topbar">
+      <div class="flex items-center gap-3">
+        <button class="menu-toggle" id="menuToggle" aria-label="Abrir menu lateral">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div>
+          <div class="crumb">
+            <span>{{ nome_corretora }}</span>
+            {% if self.migalha() %}
+              <span>/</span>
+              <span>{% block migalha %}{% endblock %}</span>
+            {% endif %}
+          </div>
+          <h1>{% block cabecalho %}{% endblock %}</h1>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <!-- Alternador de Tema Escuro / Claro -->
+        <button class="theme-toggle-btn" id="themeToggleBtn" type="button" aria-label="Alternar tema" title="Alternar modo claro / escuro">
+          <span class="icon-sun">{{ icone('sun', tamanho=16) }}</span>
+          <span class="icon-moon">{{ icone('moon', tamanho=16) }}</span>
+        </button>
+
+        {% block acoes_topbar %}{% endblock %}
+      </div>
+    </header>
+
+    <main class="content">
+
+      <!-- Notificações Flash -->
+      {% with mensagens = get_flashed_messages(with_categories=true) %}
+        {% if mensagens %}
+          {% for categoria, texto in mensagens %}
+            <div class="flash-message {{ categoria }}">
+              {% if categoria == 'sucesso' %}
+                {{ icone('check', tamanho=16) }}
+              {% else %}
+                {{ icone('alert', tamanho=16) }}
+              {% endif %}
+              <div>{{ texto }}</div>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      {% block conteudo %}{% endblock %}
+
+    </main>
+  </div>
+</div>
+
+<script>
+  // Controle de Tema Escuro / Claro
+  const themeBtn = document.getElementById('themeToggleBtn');
+  themeBtn?.addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme') || 'light';
+    const next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    try {
+      localStorage.setItem('corretora_theme', next);
+    } catch(e) {}
+  });
+
+  // Controle do menu mobile
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  const menuToggle = document.getElementById('menuToggle');
+
+  menuToggle?.addEventListener('click', () => sidebar.classList.toggle('open'));
+  backdrop?.addEventListener('click', () => sidebar.classList.remove('open'));
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && sidebar.classList.contains('open')) {
+      sidebar.classList.remove('open');
+    }
+  });
+</script>
+{% block scripts_extra %}{% endblock %}
+
+</body>
+</html>

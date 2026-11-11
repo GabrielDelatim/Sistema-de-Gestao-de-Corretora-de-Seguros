@@ -1,0 +1,116 @@
+{% extends "layout/base.html" %}
+
+{% block titulo %}Sinistro {{ sinistro.numero or sinistro.id }}{% endblock %}
+{% block migalha %}
+  <a href="{{ url_for('cliente_detalhe', id_cliente=cliente.id) }}" style="color:var(--text-faint);">{{ cliente.nome if cliente }}</a>
+  <span>·</span>
+  <a href="{{ url_for('seguro_detalhe', id_seguro=seguro.id) }}" style="color:var(--text-faint);">Seguro</a>
+  <span>·</span>
+  <span>Sinistro</span>
+{% endblock %}
+{% block cabecalho %}Sinistro {{ sinistro.numero or '#' ~ sinistro.id }}{% endblock %}
+
+{% block acoes_topbar %}
+  <a class="btn btn-secondary" href="{{ url_for('seguro_detalhe', id_seguro=seguro.id) }}">
+    Voltar ao Seguro
+  </a>
+
+  {% if card %}
+    <a class="btn btn-secondary" href="{{ url_for('card_detalhe', id_card=card.id) }}">
+      {{ icone('kanban', tamanho=15) }}
+      Ir para Card no Kanban
+    </a>
+  {% endif %}
+
+  {% if usuario_logado.perfil in ['Administrador', 'Área Sinistros'] %}
+    <form method="POST" action="{{ url_for('sinistro_deletar', id_sinistro=sinistro.id) }}"
+          onsubmit="return confirm('Deseja realmente excluir o registro deste sinistro?');" style="display:inline;">
+      <button class="btn btn-danger" type="submit">
+        {{ icone('trash', tamanho=15) }}
+        Excluir
+      </button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block conteudo %}
+
+  <div style="display:grid; grid-template-columns: 1fr 340px; gap:var(--sp-5); align-items:start;">
+
+    <!-- Detalhes do Sinistro -->
+    <div class="card">
+      <div class="card-header">
+        <h2>
+          {{ icone('alert', tamanho=18) }}
+          Registro de Sinistro & Ocorrência
+        </h2>
+        <span class="badge info" style="font-size:12px; padding:4px 10px;">{{ sinistro.status }}</span>
+      </div>
+
+      <div class="dados-grid">
+        <div class="dado">
+          <div class="rotulo">Nº do Sinistro (Companhia)</div>
+          <div class="valor" style="font-family:monospace; font-weight:700;">{{ sinistro.numero or 'Em apuração' }}</div>
+        </div>
+
+        <div class="dado">
+          <div class="rotulo">Data da Ocorrência</div>
+          <div class="valor"><strong>{{ sinistro.data_ocorrencia|data_br }}</strong></div>
+        </div>
+
+        <div class="dado" style="grid-column:1/-1;">
+          <div class="rotulo">Apólice de Cobertura</div>
+          <div class="valor">
+            {{ seguro.ramo }} · {{ seguro.seguradora }} · Apólice {{ seguro.numero_apolice or '—' }} ({{ cliente.nome if cliente }})
+          </div>
+        </div>
+
+        <div class="dado" style="grid-column:1/-1;">
+          <div class="rotulo">Terceiro(s) Envolvido(s) & Avarias</div>
+          <div class="valor" style="color:var(--text-muted); line-height:1.6;">
+            {{ sinistro.terceiros or 'Nenhum terceiro informado no registro.' }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Anexos do Sinistro -->
+    <div class="card">
+      <div class="card-header">
+        <h2>
+          {{ icone('attachment', tamanho=18) }}
+          Fotos & Documentos
+        </h2>
+      </div>
+
+      {% if sinistro.anexos %}
+        <ul style="display:flex; flex-direction:column; gap:8px; margin-bottom:var(--sp-4);">
+          {% for a in sinistro.anexos %}
+            <li style="display:flex; align-items:center; justify-content:space-between; padding:8px 10px; background:var(--bg); border-radius:var(--radius-sm); border:1px solid var(--border-subtle); font-size:12.5px;">
+              <a href="{{ url_for('anexo', nome_arquivo=a.nome) }}" target="_blank" style="color:var(--accent-light); font-weight:600; word-break:break-all;">
+                {{ a.nome }}
+              </a>
+              {% if a.importante %}
+                <span class="badge warning" style="font-size:10px;">Importante</span>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-faint" style="font-size:13px; margin-bottom:var(--sp-4);">Nenhum documento ou foto anexado.</p>
+      {% endif %}
+
+      <form method="POST" action="{{ url_for('sinistro_anexar', id_sinistro=sinistro.id) }}" enctype="multipart/form-data">
+        <div class="field" style="margin-bottom:var(--sp-3);">
+          <label for="arquivo">Adicionar Boletim / Fotos / Orçamento</label>
+          <input class="input" type="file" id="arquivo" name="arquivo" required style="padding:6px;">
+        </div>
+        <button class="btn btn-secondary btn-sm" type="submit" style="width:100%;">
+          Anexar Documento
+        </button>
+      </form>
+    </div>
+
+  </div>
+
+{% endblock %}

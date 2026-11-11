@@ -1,0 +1,83 @@
+{% extends "layout/base.html" %}
+
+{% block titulo %}Configurações da Corretora{% endblock %}
+{% block migalha %}Administração · Configurações{% endblock %}
+{% block cabecalho %}Configurações da Corretora{% endblock %}
+
+{% block conteudo %}
+  <div style="max-width: 680px;">
+
+    <div class="card">
+      <div class="card-header">
+        <h2>
+          {{ icone('settings', tamanho=18) }}
+          Dados da Corretora
+        </h2>
+        <span class="muted">Personalização do Sistema</span>
+      </div>
+
+      <form method="POST" action="{{ url_for('configuracoes') }}">
+
+        <div class="form-grid">
+          <div class="field full">
+            <label for="nome_corretora">Nome da Corretora *</label>
+            <input class="input" type="text" id="nome_corretora" name="nome_corretora"
+                   value="{{ config.nome_corretora }}" required
+                   placeholder="Ex: Prime Corretora de Seguros">
+            <p class="hint" style="margin-top:4px;">
+              Este nome será exibido no topo da tela, no menu lateral, na tela de login e nos relatórios exportados.
+            </p>
+          </div>
+
+          <div class="field">
+            <label for="cnpj_corretora">CNPJ (Opcional)</label>
+            <input class="input" type="text" id="cnpj_corretora" name="cnpj_corretora"
+                   value="{{ config.cnpj_corretora }}"
+                   placeholder="00.000.000/0001-00">
+          </div>
+
+          <div class="field">
+            <label for="telefone_corretora">Telefone / WhatsApp (Opcional)</label>
+            <input class="input" type="text" id="telefone_corretora" name="telefone_corretora"
+                   value="{{ config.telefone_corretora }}"
+                   placeholder="(11) 99999-0000">
+          </div>
+
+          <div class="field full">
+            <label for="email_corretora">E-mail Institucional (Opcional)</label>
+            <input class="input" type="email" id="email_corretora" name="email_corretora"
+                   value="{{ config.email_corretora }}"
+                   placeholder="contato@suacorretora.com.br">
+          </div>
+        </div>
+
+        <div class="flex gap-3" style="justify-content:flex-end; margin-top:var(--sp-4); padding-top:var(--sp-3); border-top:1px solid var(--border);">
+          <button class="btn btn-primary" type="submit">
+            {{ icone('check', tamanho=16) }}
+            Salvar Configurações
+          </button>
+        </div>
+
+      </form>
+    </div>
+
+    <!-- Informações sobre os Quadros Kanban -->
+    <div class="card" style="margin-top:var(--sp-4);">
+      <div class="card-header">
+        <h2>
+          {{ icone('kanban', tamanho=18) }}
+          Regra dos Quadros Kanban
+        </h2>
+      </div>
+      <div style="font-size:13px; color:var(--text-muted); line-height:1.6;">
+        <p style="margin-bottom:8px;">
+          • <strong>Quadros por Comercial:</strong> O sistema não utiliza quadros genéricos. Cada usuário cadastrado com o perfil <strong>Comercial</strong> ganha automaticamente seu próprio par de quadros de negociação: um de <strong>Seguros</strong> e um de <strong>Sinistros</strong>.
+        </p>
+        <p style="margin-bottom:8px;">
+          • <strong>Exclusão de Comercial:</strong> Ao excluir um usuário comercial em <em>Administração → Usuários</em>, os quadros vinculados a ele também são removidos de forma limpa e automática.
+        </p>
+      </div>
+    </div>
+
+  </div>
+{% endblock %}

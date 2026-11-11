@@ -1,0 +1,83 @@
+{% extends "layout/base.html" %}
+
+{% block titulo %}Gestão de Usuários{% endblock %}
+{% block migalha %}Administração{% endblock %}
+{% block cabecalho %}Controle de Acessos & Usuários{% endblock %}
+
+{% block acoes_topbar %}
+  <a class="btn btn-primary" href="{{ url_for('usuario_novo') }}">
+    {{ icone('plus', tamanho=16) }}
+    Novo Usuário
+  </a>
+{% endblock %}
+
+{% block conteudo %}
+
+  <div class="card" style="margin-bottom:var(--sp-4); background:var(--bg); border:1px solid var(--border);">
+    <div class="flex items-center gap-3">
+      {{ icone('usuarios', tamanho=20) }}
+      <div style="font-size:13px; color:var(--text-muted);">
+        O acesso aos quadros segue estritamente o perfil cadastrado: <strong>Comercial</strong> enxerga seus 2 quadros próprios, <strong>Assistente</strong> enxerga todos os quadros de seguros, <strong>Área Sinistros</strong> enxerga os quadros de sinistros e <strong>Administrador</strong> tem visão irrestrita.
+      </div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Usuário / Colaborador</th>
+          <th>Login de Acesso</th>
+          <th>Perfil de Permissão</th>
+          <th>Quadros Autorizados</th>
+          <th>Status</th>
+          <th style="text-align:right;">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in usuarios %}
+          <tr>
+            <td class="cell-primary">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div style="width:30px; height:30px; border-radius:50%; background:var(--accent-soft); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:11.5px; font-weight:700;">
+                  {{ u.nome[:2]|upper }}
+                </div>
+                <strong>{{ u.nome }}</strong>
+              </div>
+            </td>
+            <td class="cell-muted" style="font-family:monospace;">{{ u.login }}</td>
+            <td>
+              {% set perfil_badge = 'purple' if u.perfil == 'Administrador' else ('info' if u.perfil == 'Comercial' else ('success' if u.perfil == 'Assistente' else 'warning')) %}
+              <span class="badge {{ perfil_badge }}">{{ u.perfil }}</span>
+            </td>
+            <td class="cell-muted" style="max-width:280px; font-size:12.5px;">
+              {% set meus = quadros_visiveis(u) %}
+              {% if meus|length == quadros|length %}
+                <span class="badge info">Todos os 6 quadros</span>
+              {% else %}
+                {% for q in meus %}{{ q.nome }}{{ ", " if not loop.last }}{% endfor %}
+              {% endif %}
+            </td>
+            <td>
+              <span class="badge {{ 'success' if u.status == 'Ativo' else 'neutral' }}">{{ u.status }}</span>
+            </td>
+            <td class="actions">
+              <a class="btn btn-secondary btn-sm" href="{{ url_for('usuario_editar', id_usuario=u.id) }}">
+                Editar
+              </a>
+              {% if u.id != usuario_logado.id %}
+                <form method="POST" action="{{ url_for('usuario_deletar', id_usuario=u.id) }}"
+                      onsubmit="return confirm('Excluir este usuário?');" style="display:inline;">
+                  <button class="btn btn-danger btn-sm" type="submit">
+                    Excluir
+                  </button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+{% endblock %}

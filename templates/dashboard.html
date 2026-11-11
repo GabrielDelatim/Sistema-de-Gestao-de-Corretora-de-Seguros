@@ -1,0 +1,239 @@
+{% extends "layout/base.html" %}
+
+{% block titulo %}Dashboard Geral{% endblock %}
+{% block migalha %}Visão Executiva{% endblock %}
+{% block cabecalho %}Painel de Controle{% endblock %}
+
+{% block conteudo %}
+
+  <!-- Cards de Indicadores Principais (KPIs) -->
+  <section class="stat-grid">
+    <!-- Clientes -->
+    <div class="stat-card">
+      <div class="header-row">
+        <span class="label">Total de Clientes</span>
+        <div class="icon-chip info">
+          {{ icone('clientes', tamanho=18) }}
+        </div>
+      </div>
+      <div class="value">{{ cartoes[0].valor }}</div>
+      <div class="sub">
+        <a href="{{ url_for('clientes') }}" style="color:var(--text-muted); font-weight:500;">Ver carteira completa →</a>
+      </div>
+    </div>
+
+    <!-- Seguros Ativos -->
+    <div class="stat-card">
+      <div class="header-row">
+        <span class="label">Apólices Vigentes</span>
+        <div class="icon-chip success">
+          {{ icone('seguros', tamanho=18) }}
+        </div>
+      </div>
+      <div class="value">{{ cartoes[1].valor }}</div>
+      <div class="sub">
+        <span class="badge success">Carteira monitorada</span>
+      </div>
+    </div>
+
+    <!-- Vencendo em Breve -->
+    <div class="stat-card">
+      <div class="header-row">
+        <span class="label">Vencendo (30 dias)</span>
+        <div class="icon-chip warning">
+          {{ icone('clock', tamanho=18) }}
+        </div>
+      </div>
+      <div class="value">{{ cartoes[2].valor }}</div>
+      <div class="sub">
+        <span class="badge {{ 'danger' if cartoes[2].valor > 0 else 'neutral' }}">Gera cards automáticos</span>
+      </div>
+    </div>
+
+    <!-- Tarefas Pendentes -->
+    <div class="stat-card">
+      <div class="header-row">
+        <span class="label">Tarefas na Fila</span>
+        <div class="icon-chip purple">
+          {{ icone('task', tamanho=18) }}
+        </div>
+      </div>
+      <div class="value">{{ cartoes[3].valor }}</div>
+      <div class="sub">
+        <a href="{{ url_for('quadros') }}" style="color:var(--purple); font-weight:500;">Acessar tarefas →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Barra de Avisos Operacionais -->
+  <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--sp-3); margin-bottom: var(--sp-5);">
+    <div class="alert-box warning" style="margin-bottom:0;">
+      {{ icone('clock', tamanho=18) }}
+      <div style="flex:1;">
+        <strong>Renovações em curso</strong>
+        <div style="font-size:12px; margin-top:1px;">{{ alertas[0] }}</div>
+      </div>
+      <a class="btn btn-secondary btn-sm" href="#tabelaVencendo">Conferir</a>
+    </div>
+
+    <div class="alert-box info" style="margin-bottom:0;">
+      {{ icone('kanban', tamanho=18) }}
+      <div style="flex:1;">
+        <strong>Pipeline Comercial</strong>
+        <div style="font-size:12px; margin-top:1px;">{{ alertas[2] }}</div>
+      </div>
+      <a class="btn btn-secondary btn-sm" href="{{ url_for('quadros') }}">Ver Quadros</a>
+    </div>
+  </div>
+
+  <!-- Seção Gráficos -->
+  <div style="display:grid; grid-template-columns: 1.35fr 1fr; gap: var(--sp-5); margin-bottom: var(--sp-5);">
+
+    <!-- Gráfico de Renovações x Perdas -->
+    <div class="card">
+      <div class="card-header">
+        <h2>
+          {{ icone('renovacoes', tamanho=18) }}
+          Desempenho de Renovações
+        </h2>
+        <span class="muted">Últimos meses</span>
+      </div>
+
+      {% if meses %}
+        {% set maior = (meses|map(attribute="renovados")|list + meses|map(attribute="perdidos")|list)|max %}
+        <div style="display:flex; align-items:flex-end; gap:16px; height:180px; padding:12px 6px 0; border-bottom: 1px solid var(--border-subtle);">
+          {% for m in meses %}
+            <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:8px; height:100%;">
+              <div style="width:100%; display:flex; align-items:flex-end; justify-content:center; gap:6px; height:140px;">
+                <!-- Barra Renovados (Azul Ardósia Sóbrio) -->
+                <div title="Renovados: {{ m.renovados }}"
+                     style="width:14px; background:var(--chart-primary); border-radius:3px 3px 0 0; height:{{ (m.renovados / maior * 100)|round(1) if maior else 4 }}%; min-height:4px; transition: height 0.3s ease;">
+                </div>
+                <!-- Barra Perdidos (Terracota Muted Sóbrio) -->
+                <div title="Perdidos: {{ m.perdidos }}"
+                     style="width:14px; background:var(--chart-secondary); border-radius:3px 3px 0 0; height:{{ (m.perdidos / maior * 100)|round(1) if maior else 4 }}%; min-height:4px; transition: height 0.3s ease;">
+                </div>
+              </div>
+              <span style="font-size:11.5px; font-weight:500; color:var(--text-muted);">{{ m.mes }}</span>
+            </div>
+          {% endfor %}
+        </div>
+
+        <div class="flex items-center gap-4" style="margin-top:var(--sp-3); font-size:12px; color:var(--text-muted); justify-content:flex-end;">
+          <span class="flex items-center gap-2">
+            <span style="width:10px; height:10px; border-radius:2px; background:var(--chart-primary); display:inline-block;"></span>
+            Renovados
+          </span>
+          <span class="flex items-center gap-2">
+            <span style="width:10px; height:10px; border-radius:2px; background:var(--chart-secondary); display:inline-block;"></span>
+            Perdidos
+          </span>
+        </div>
+      {% else %}
+        <div class="empty-state">
+          {{ icone('metricas', tamanho=36) }}
+          <p>Sem dados de renovação no período recente.</p>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Carteira por Ramo -->
+    <div class="card">
+      <div class="card-header">
+        <h2>
+          {{ icone('shield', tamanho=18) }}
+          Distribuição da Carteira
+        </h2>
+        <span class="muted">Por Ramo</span>
+      </div>
+
+      {% set total = carteira.values()|sum %}
+      <div style="display:flex; flex-direction:column; gap:14px;">
+        {% for ramo, qtd in carteira.items() %}
+          {% set pct = (qtd / total * 100)|round(1) if total else 0 %}
+          <div>
+            <div class="flex items-center justify-between" style="font-size:13px; font-weight:500; margin-bottom:5px;">
+              <span class="flex items-center gap-2">
+                {% if ramo == 'Automóvel' %}{{ icone('car', tamanho=15) }}
+                {% else %}{{ icone('shield', tamanho=15) }}{% endif %}
+                {{ ramo }}
+              </span>
+              <span style="font-weight:600; color:var(--text);">
+                {{ qtd }} <span style="font-weight:400; font-size:11.5px; color:var(--text-faint);">({{ pct }}%)</span>
+              </span>
+            </div>
+            <div style="background:var(--bg-subtle); border-radius:var(--radius-full); height:8px; overflow:hidden; border:1px solid var(--border-subtle);">
+              <div style="background:var(--chart-primary); height:100%; width:{{ pct }}%; border-radius:var(--radius-full); transition: width 0.5s ease;"></div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Tabela de Apólices Vencendo em Breve -->
+  <div class="card" id="tabelaVencendo">
+    <div class="card-header">
+      <h2>
+        {{ icone('clock', tamanho=18) }}
+        Vencimentos Próximos (Até 30 Dias)
+      </h2>
+      <span class="badge warning">Prioridade Alta</span>
+    </div>
+
+    {% if vencendo %}
+      <div class="table-wrap" style="border:none;">
+        <table>
+          <thead>
+            <tr>
+              <th>Cliente Segurado</th>
+              <th>Ramo</th>
+              <th>Seguradora</th>
+              <th>Data Vencimento</th>
+              <th>Status do Prazo</th>
+              <th style="text-align:right;">Ação</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in vencendo %}
+              {% set dias = dias_restantes(s.vigencia_fim) %}
+              <tr>
+                <td class="cell-primary">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="width:26px; height:26px; border-radius:50%; background:var(--accent-soft); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:700;">
+                      {{ s.cadastro.nome[:2]|upper }}
+                    </div>
+                    <span>{{ s.cadastro.nome }}</span>
+                  </div>
+                </td>
+                <td>{{ s.ramo }}</td>
+                <td class="cell-muted">{{ s.seguradora }}</td>
+                <td><strong>{{ s.vigencia_fim|data_br }}</strong></td>
+                <td>
+                  <span class="badge {{ 'danger' if dias <= 15 else 'warning' }}">
+                    {% if dias < 0 %}Vencido há {{ -dias }}d
+                    {% elif dias == 0 %}Vence hoje!
+                    {% else %}Faltam {{ dias }} dias{% endif %}
+                  </span>
+                </td>
+                <td class="actions">
+                  <a class="btn btn-secondary btn-sm" href="{{ url_for('seguro_detalhe', id_seguro=s.id) }}">
+                    Ver Seguro
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        {{ icone('check', tamanho=36) }}
+        <h3>Tudo em dia!</h3>
+        <p>Nenhuma apólice vence nos próximos 30 dias.</p>
+      </div>
+    {% endif %}
+  </div>
+
+{% endblock %}

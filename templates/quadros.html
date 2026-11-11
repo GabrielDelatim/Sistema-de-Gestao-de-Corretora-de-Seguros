@@ -1,0 +1,129 @@
+{% extends "layout/base.html" %}
+
+{% block titulo %}Quadros de Processo Comercial{% endblock %}
+{% block migalha %}Comercial & Sinistros{% endblock %}
+{% block cabecalho %}Quadros de Negociação & Tarefas{% endblock %}
+
+{% block conteudo %}
+
+  <!-- Painel de Tarefas Pendentes da Equipe (RF16) -->
+  <div class="card" style="margin-bottom:var(--sp-5);">
+    <div class="card-header">
+      <h2>
+        {{ icone('task', tamanho=18) }}
+        Minhas Tarefas & Pendências
+      </h2>
+      {% set atrasadas = pendentes | selectattr('prazo', 'lt', hoje) | list %}
+      <div class="flex gap-2">
+        {% if atrasadas %}
+          <span class="badge danger">{{ atrasadas|length }} atrasada(s)</span>
+        {% endif %}
+        <span class="badge {{ 'warning' if pendentes else 'success' }}">{{ pendentes|length }} pendente(s)</span>
+      </div>
+    </div>
+
+    {% if pendentes %}
+      <div class="table-wrap" style="border:none;">
+        <table>
+          <thead>
+            <tr>
+              <th>Prazo Limite</th>
+              <th>Tipo de Atividade</th>
+              <th>Instruções</th>
+              <th>Urgência</th>
+              <th>Comercial Responsável</th>
+              <th style="text-align:right;">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in pendentes %}
+              {% set eh_atrasada = (t.prazo < hoje) %}
+              <tr>
+                <td>
+                  <strong>{{ t.prazo|data_br }}</strong>
+                  {% if eh_atrasada %}
+                    <span class="badge danger" style="margin-left:4px;">Atrasada</span>
+                  {% endif %}
+                </td>
+                <td class="cell-primary">{{ t.tipo }}</td>
+                <td class="cell-muted" style="max-width:320px;">{{ t.descricao }}</td>
+                <td>
+                  <span class="badge {{ 'danger' if t.urgencia == 'Alta' else ('warning' if t.urgencia == 'Média' else 'neutral') }}">
+                    {{ t.urgencia }}
+                  </span>
+                </td>
+                <td class="cell-muted">{{ t.comercial }}</td>
+                <td class="actions">
+                  <a class="btn btn-secondary btn-sm" href="{{ url_for('card_detalhe', id_card=t.card_id) }}">
+                    Abrir Card
+                  </a>
+                  {% if usuario_logado.perfil in ['Administrador', 'Assistente'] %}
+                    <form method="POST" action="{{ url_for('tarefa_entregar', id_tarefa=t.id) }}" style="display:inline;">
+                      <input type="hidden" name="voltar" value="{{ url_for('quadros') }}">
+                      <button class="btn btn-success btn-sm" type="submit">
+                        {{ icone('check', tamanho=13) }}
+                        Entregar
+                      </button>
+                    </form>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state" style="padding:var(--sp-5);">
+        {{ icone('check', tamanho=36) }}
+        <h3>Nenhuma tarefa pendente!</h3>
+        <p>Todas as tarefas atribuídas ao seu perfil foram concluídas.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Pipelines Kanban Visíveis para o Perfil (RF11) -->
+  <div class="card">
+    <div class="card-header">
+      <h2>
+        {{ icone('kanban', tamanho=18) }}
+        Pipelines Disponíveis
+      </h2>
+      <span class="badge info">{{ quadros|length }} quadros</span>
+    </div>
+
+    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--sp-4);">
+      {% for q in quadros %}
+        <div class="card" style="padding:var(--sp-4); border:1px solid var(--border); box-shadow:var(--shadow-xs); transition:transform 0.15s ease, box-shadow 0.15s ease;">
+          <div class="flex items-center justify-between" style="margin-bottom:var(--sp-2);">
+            <span class="badge {{ 'info' if q.tipo == 'Seguros' else 'warning' }}">{{ q.tipo }}</span>
+            <span style="font-size:12px; font-weight:600; color:var(--text-faint);">{{ q.total_cards }} cards</span>
+          </div>
+
+          <h3 style="font-size:16px; font-weight:700; color:var(--text); margin-bottom:4px;">{{ q.nome }}</h3>
+          <p class="text-faint" style="font-size:12px; margin-bottom:var(--sp-4);">
+            Responsável: <strong style="color:var(--text-muted);">{{ q.comercial }}</strong>
+          </p>
+
+          <a class="btn btn-secondary btn-sm" style="width:100%; justify-content:center;" href="{{ url_for('pipeline', id_quadro=q.id) }}">
+            Abrir Pipeline Kanban →
+          </a>
+        </div>
+      {% else %}
+        <div class="empty-state" style="grid-column:1/-1; padding:var(--sp-6);">
+          {{ icone('kanban', tamanho=36) }}
+          <h3 style="margin-top:var(--sp-2); margin-bottom:4px;">Nenhum quadro de negociação criado</h3>
+          <p style="max-width:460px; margin:0 auto var(--sp-4); font-size:13px; color:var(--text-muted);">
+            O sistema não possui quadros genéricos. Cada usuário cadastrado com perfil <strong>Comercial</strong> ganha automaticamente seu próprio par de quadros (Seguros e Sinistros).
+          </p>
+          {% if usuario_logado.perfil == 'Administrador' %}
+            <a class="btn btn-primary btn-sm" href="{{ url_for('usuario_novo') }}">
+              {{ icone('plus', tamanho=14) }}
+              Cadastrar Colaborador Comercial
+            </a>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+{% endblock %}

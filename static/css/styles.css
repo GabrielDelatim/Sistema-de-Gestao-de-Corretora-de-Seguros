@@ -1,0 +1,1177 @@
+/* =========================================================================
+   SISTEMA DE GESTÃO DE CORRETORA DE SEGUROS — DESIGN SYSTEM (MINIMALISTA + DARK MODE)
+   -------------------------------------------------------------------------
+   Design moderno, profissional, com paleta sóbria (cores menos saturadas),
+   quadro Kanban estilo Trello e suporte completo a Modo Escuro.
+   ========================================================================= */
+
+/* -------------------------------------------------------------------------
+   1. TOKENS DE DESIGN (LIGHT & DARK MODE)
+   ------------------------------------------------------------------------- */
+:root {
+  /* TEMA CLARO (Minimalista, Sofisticado, Baixa Saturação) */
+  --bg:             #F7F8FA;
+  --bg-subtle:      #EBEDF0;
+  --surface:        #FFFFFF;
+  --surface-hover:  #F4F5F7;
+  --surface-card:   #FFFFFF;
+
+  --border:         #DFE1E6;
+  --border-subtle:  #EBECF0;
+  --border-strong:  #C1C7D0;
+  --border-focus:   #4C6B94;
+
+  --text:           #172B4D;
+  --text-muted:     #5E6C84;
+  --text-faint:     #8993A4;
+  --text-inverse:   #FFFFFF;
+
+  /* Cor de Destaque Sóbria (Slate Navy) */
+  --accent:         #2C3E50;
+  --accent-hover:   #1A252F;
+  --accent-light:   #34495E;
+  --accent-soft:    #EEF2F6;
+  --accent-border:  #D5DDE5;
+
+  /* Cores de Status Pastéis, Discretas e Elegantes (Baixa Saturação) */
+  --success:        #2E6B47;
+  --success-soft:   #EEF5F1;
+  --success-border: #D0E4D7;
+
+  --warning:        #8C6527;
+  --warning-soft:   #FDF8EE;
+  --warning-border: #F3E6CD;
+
+  --danger:         #9E4A4A;
+  --danger-soft:    #FBF2F2;
+  --danger-border:  #F2D7D7;
+
+  --info:           #36546E;
+  --info-soft:      #EEF3F7;
+  --info-border:    #D2DFEA;
+
+  --purple:         #5E4B75;
+  --purple-soft:    #F4EEF8;
+  --purple-border:  #E0D4E8;
+
+  /* Cores de Gráficos e Indicadores Sutis */
+  --chart-primary:   #46667F;
+  --chart-secondary: #A65A5A;
+  --chart-bar-bg:    #EBEDF0;
+
+  /* Kanban Trello Tokens */
+  --trello-board-bg:   #F0F2F5;
+  --trello-col-bg:     #EBECF0;
+  --trello-col-border: #DFE1E6;
+  --trello-card-bg:    #FFFFFF;
+  --trello-card-hover: #F8F9FA;
+  --trello-drop-over:  #DFE1E6;
+  --trello-shadow:     0 1px 1px rgba(9, 30, 66, 0.2), 0 0 1px rgba(9, 30, 66, 0.25);
+  --trello-shadow-h:   0 3px 6px rgba(9, 30, 66, 0.15), 0 0 1px rgba(9, 30, 66, 0.25);
+
+  /* Sombras Suaves */
+  --shadow-xs: 0 1px 2px rgba(9, 30, 66, 0.05);
+  --shadow-sm: 0 1px 3px rgba(9, 30, 66, 0.08);
+  --shadow-md: 0 4px 8px -2px rgba(9, 30, 66, 0.08);
+  --shadow-lg: 0 12px 24px -4px rgba(9, 30, 66, 0.1);
+
+  /* Espaçamentos e Raios */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius:    8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  --sidebar-w: 240px;
+  --topbar-h:  60px;
+}
+
+/* --- TEMA ESCURO (Dark Mode Elegante e Suave aos Olhos) --- */
+[data-theme="dark"] {
+  --bg:             #0F1115;
+  --bg-subtle:      #161920;
+  --surface:        #1A1D24;
+  --surface-hover:  #21252E;
+  --surface-card:   #1E222A;
+
+  --border:         #282C37;
+  --border-subtle:  #20242E;
+  --border-strong:  #363C4A;
+  --border-focus:   #5D82AF;
+
+  --text:           #E6E9EF;
+  --text-muted:     #9CA3AF;
+  --text-faint:     #6B7280;
+  --text-inverse:   #0F1115;
+
+  --accent:         #3B536E;
+  --accent-hover:   #486586;
+  --accent-light:   #5D82AF;
+  --accent-soft:    #1F2937;
+  --accent-border:  #374151;
+
+  --success:        #6DB888;
+  --success-soft:   #15261C;
+  --success-border: #203B2C;
+
+  --warning:        #C49B55;
+  --warning-soft:   #2A2113;
+  --warning-border: #40321B;
+
+  --danger:         #C57676;
+  --danger-soft:    #2E1B1E;
+  --danger-border:  #46252B;
+
+  --info:           #7297B3;
+  --info-soft:      #18232D;
+  --info-border:    #26394A;
+
+  --purple:         #9E83BD;
+  --purple-soft:    #261C2E;
+  --purple-border:  #3C2B49;
+
+  /* Cores de Gráficos em Dark Mode */
+  --chart-primary:   #688BA5;
+  --chart-secondary: #BA7373;
+  --chart-bar-bg:    #20242E;
+
+  /* Trello Kanban em Dark Mode */
+  --trello-board-bg:   #0D0F12;
+  --trello-col-bg:     #161A1D;
+  --trello-col-border: #22262B;
+  --trello-card-bg:    #22272B;
+  --trello-card-hover: #282E33;
+  --trello-drop-over:  #1D2125;
+  --trello-shadow:     0 1px 1px rgba(0, 0, 0, 0.4), 0 0 1px rgba(0, 0, 0, 0.5);
+  --trello-shadow-h:   0 4px 8px rgba(0, 0, 0, 0.4);
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 12px 24px -4px rgba(0, 0, 0, 0.6);
+}
+
+/* -------------------------------------------------------------------------
+   2. RESET & BASE
+   ------------------------------------------------------------------------- */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13.5px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+h1, h2, h3, h4, p, ul, ol {
+  margin: 0;
+}
+
+ul, ol {
+  list-style: none;
+  padding: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+img, svg {
+  display: block;
+}
+
+/* Foco acessível com anel suave */
+a:focus-visible, button:focus-visible, input:focus-visible,
+select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* -------------------------------------------------------------------------
+   3. ESTRUTURA GERAL (App Shell, Sidebar, Topbar)
+   ------------------------------------------------------------------------- */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* --- Sidebar --- */
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 30;
+  transition: transform 0.2s ease;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-4) var(--sp-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.sidebar-brand .mark {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+
+.sidebar-brand .name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.sidebar-brand .name small {
+  display: block;
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.nav-group {
+  padding: 0 var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+.nav-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: var(--sp-2) var(--sp-3) var(--sp-1);
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 8px var(--sp-3);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 2px;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.nav-link svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  color: var(--text-faint);
+}
+
+.nav-link:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.nav-link.active {
+  background: var(--accent-soft);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.nav-link.active svg {
+  color: var(--accent);
+}
+
+[data-theme="dark"] .nav-link.active {
+  color: #FFFFFF;
+}
+
+.nav-counter {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: var(--sp-3);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 6px var(--sp-2);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+}
+
+.user-chip .avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.user-chip .info {
+  line-height: 1.25;
+  overflow: hidden;
+  flex: 1;
+}
+
+.user-chip .info strong {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
+.user-chip .info span {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.logout-btn {
+  margin-top: var(--sp-2);
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.logout-btn:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* --- Topbar & Modo Escuro Toggle --- */
+.app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  height: var(--topbar-h);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--sp-5);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.topbar h1 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.topbar .crumb {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  margin-bottom: 1px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* Botão de Alternância de Tema (Sol / Lua) */
+.theme-toggle-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.theme-toggle-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+[data-theme="light"] .theme-toggle-btn .icon-sun { display: none; }
+[data-theme="light"] .theme-toggle-btn .icon-moon { display: block; }
+
+[data-theme="dark"] .theme-toggle-btn .icon-sun { display: block; }
+[data-theme="dark"] .theme-toggle-btn .icon-moon { display: none; }
+
+.content {
+  padding: var(--sp-5);
+  flex: 1;
+}
+
+.menu-toggle {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text);
+  padding: 6px;
+}
+
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  z-index: 25;
+}
+
+/* -------------------------------------------------------------------------
+   4. COMPONENTES VISUAIS (Cards, Buttons, Tables, Badges)
+   ------------------------------------------------------------------------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+  box-shadow: var(--shadow-xs);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.card-header h2 {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.card-header .muted {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+/* --- Botões Modernos e Minimalistas --- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+}
+
+.btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #FFFFFF;
+  border-color: var(--accent);
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+.btn-secondary {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.btn-secondary:hover {
+  background: var(--surface-hover);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.btn-ghost:hover {
+  background: var(--bg-subtle);
+  color: var(--text);
+}
+
+.btn-danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: var(--danger-border);
+}
+
+.btn-danger:hover {
+  filter: brightness(0.95);
+}
+
+.btn-success {
+  background: var(--success-soft);
+  color: var(--success);
+  border-color: var(--success-border);
+}
+
+.btn-success:hover {
+  filter: brightness(0.95);
+}
+
+.btn-sm {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+/* --- Campos de Formulário --- */
+.field {
+  margin-bottom: var(--sp-3);
+}
+
+.field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+
+.field .hint {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  margin-top: 4px;
+}
+
+.input, select.input, textarea.input {
+  width: 100%;
+  padding: 8px 11px;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input:focus, select.input:focus, textarea.input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px rgba(93, 130, 175, 0.2);
+}
+
+.input::placeholder {
+  color: var(--text-faint);
+}
+
+textarea.input {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 var(--sp-4);
+}
+
+.form-grid .field.full {
+  grid-column: 1 / -1;
+}
+
+.field.has-error .input {
+  border-color: var(--danger);
+}
+
+.field .error-msg {
+  display: none;
+  color: var(--danger);
+  font-size: 11.5px;
+  margin-top: 4px;
+}
+
+.field.has-error .error-msg {
+  display: block;
+}
+
+/* --- Badges & Status Pills --- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: var(--radius-xs);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.25;
+  border: 1px solid transparent;
+}
+
+.badge.success { background: var(--success-soft); color: var(--success); border-color: var(--success-border); }
+.badge.warning { background: var(--warning-soft); color: var(--warning); border-color: var(--warning-border); }
+.badge.danger  { background: var(--danger-soft);  color: var(--danger);  border-color: var(--danger-border); }
+.badge.info    { background: var(--info-soft);    color: var(--info);    border-color: var(--info-border); }
+.badge.purple  { background: var(--purple-soft);  color: var(--purple);  border-color: var(--purple-border); }
+.badge.neutral { background: var(--bg-subtle);   color: var(--text-muted); border-color: var(--border); }
+
+/* --- Tabelas Limpas --- */
+.table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+thead th {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 10px var(--sp-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-hover);
+  white-space: nowrap;
+}
+
+tbody td {
+  padding: 10px var(--sp-4);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+tbody tr:hover {
+  background-color: var(--surface-hover);
+}
+
+td.actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.cell-primary {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cell-muted {
+  color: var(--text-muted);
+}
+
+/* --- Stat Cards (KPIs) --- */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-3) var(--sp-4);
+  box-shadow: var(--shadow-xs);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.stat-card:hover {
+  border-color: var(--border-strong);
+}
+
+.stat-card .header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.stat-card .label {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.stat-card .icon-chip {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+}
+.stat-card .icon-chip.info    { background: var(--info-soft);    color: var(--info); }
+.stat-card .icon-chip.success { background: var(--success-soft); color: var(--success); }
+.stat-card .icon-chip.warning { background: var(--warning-soft); color: var(--warning); }
+.stat-card .icon-chip.danger  { background: var(--danger-soft);  color: var(--danger); }
+.stat-card .icon-chip.purple  { background: var(--purple-soft);  color: var(--purple); }
+.stat-card .icon-chip.accent  { background: var(--accent-soft);  color: var(--accent); }
+
+.stat-card .value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.stat-card .sub {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 4px;
+}
+
+/* --- Alertas --- */
+.alert-box {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  margin-bottom: var(--sp-3);
+  border: 1px solid transparent;
+}
+
+.alert-box.info    { background: var(--info-soft);    color: var(--info);    border-color: var(--info-border); }
+.alert-box.warning { background: var(--warning-soft); color: var(--warning); border-color: var(--warning-border); }
+.alert-box.danger  { background: var(--danger-soft);  color: var(--danger);  border-color: var(--danger-border); }
+.alert-box.success { background: var(--success-soft); color: var(--success); border-color: var(--success-border); }
+
+.flash-message {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 10px var(--sp-4);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  margin-bottom: var(--sp-4);
+  border: 1px solid transparent;
+}
+.flash-message.sucesso { background: var(--success-soft); color: var(--success); border-color: var(--success-border); }
+.flash-message.erro    { background: var(--danger-soft);  color: var(--danger);  border-color: var(--danger-border); }
+
+/* --- Barra de Busca --- */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.search-box {
+  position: relative;
+  min-width: 260px;
+  flex: 1;
+  max-width: 360px;
+}
+
+.search-box svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 15px;
+  height: 15px;
+  color: var(--text-faint);
+  pointer-events: none;
+}
+
+.search-box input {
+  padding-left: 32px;
+}
+
+/* -------------------------------------------------------------------------
+   5. KANBAN ESTILO TRELLO (Idêntico ao padrão Trello)
+   ------------------------------------------------------------------------- */
+.trello-board-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--topbar-h) - 40px);
+}
+
+.kanban-board {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 12px;
+  align-items: flex-start;
+  height: 100%;
+}
+
+/* Barra de rolagem sutil do Trello */
+.kanban-board::-webkit-scrollbar {
+  height: 10px;
+}
+.kanban-board::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius-full);
+}
+.kanban-board::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-full);
+}
+
+/* Coluna estilo Trello */
+.kanban-col {
+  background: var(--trello-col-bg);
+  border: 1px solid var(--trello-col-border);
+  border-radius: 10px;
+  width: 272px; /* Largura padrão Trello */
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+}
+
+.kanban-col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.kanban-col-head .col-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kanban-col-head .count {
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius-full);
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+[data-theme="dark"] .kanban-col-head .count {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.kanban-col-body {
+  padding: 0 8px 8px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 48px;
+  flex: 1;
+}
+
+.kanban-col-body.drag-over {
+  background: var(--trello-drop-over);
+  border-radius: 8px;
+}
+
+/* Cartão individual estilo Trello */
+.kanban-card {
+  background: var(--trello-card-bg);
+  border-radius: 8px;
+  padding: 8px 10px 9px;
+  cursor: pointer;
+  box-shadow: var(--trello-shadow);
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.1s ease;
+  user-select: none;
+  position: relative;
+  border: 1px solid transparent;
+}
+
+.kanban-card:hover {
+  background: var(--trello-card-hover);
+  box-shadow: var(--trello-shadow-h);
+  border-color: var(--border-strong);
+}
+
+.kanban-card:active {
+  cursor: grabbing;
+}
+
+.kanban-card.dragging {
+  opacity: 0.4;
+  transform: rotate(2deg);
+}
+
+/* Etiquetas coloridas estilo Trello (Labels no topo) */
+.trello-labels {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 5px;
+}
+
+.trello-label {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  line-height: 1.2;
+}
+
+.trello-label.purple  { background: var(--purple-soft); color: var(--purple); }
+.trello-label.success { background: var(--success-soft); color: var(--success); }
+.trello-label.info    { background: var(--info-soft); color: var(--info); }
+.trello-label.warning { background: var(--warning-soft); color: var(--warning); }
+.trello-label.danger  { background: var(--danger-soft); color: var(--danger); }
+
+/* Título e Conteúdo do Cartão Trello */
+.kanban-card .card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.35;
+  margin-bottom: 4px;
+}
+
+.kanban-card .card-subtitle {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.3;
+  margin-bottom: 8px;
+}
+
+/* Linha de Badges Trello (Ícones inferiores: Checklist, Data, Anexos, Chat) */
+.trello-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 4px;
+}
+
+.trello-badge-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.trello-badge-item svg {
+  width: 12px;
+  height: 12px;
+}
+
+.trello-badge-item.badge-clock {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+}
+
+.trello-badge-item.badge-clock.overdue {
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.trello-badge-item.badge-clock.soon {
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-weight: 600;
+}
+
+.trello-badge-item.has-items {
+  color: var(--text-muted);
+}
+
+.trello-val-chip {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* Botão "+ Adicionar um cartão" no rodapé da coluna */
+.kanban-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 7px 10px;
+  margin-top: 2px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.kanban-add-btn:hover {
+  background: rgba(9, 30, 66, 0.08);
+  color: var(--text);
+}
+[data-theme="dark"] .kanban-add-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* -------------------------------------------------------------------------
+   6. UTILITÁRIOS & RESPONSIVO
+   ------------------------------------------------------------------------- */
+.dados-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--sp-3) var(--sp-4);
+}
+
+.dado .rotulo {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 3px;
+}
+
+.dado .valor {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.flex { display: flex; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-1 { gap: var(--sp-1); }
+.gap-2 { gap: var(--sp-2); }
+.gap-3 { gap: var(--sp-3); }
+.gap-4 { gap: var(--sp-4); }
+.text-muted { color: var(--text-muted); }
+.text-faint { color: var(--text-faint); }
+
+@media (max-width: 1024px) {
+  .stat-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .menu-toggle { display: flex; }
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    transform: translateX(-100%);
+    box-shadow: var(--shadow-lg);
+  }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar.open ~ .sidebar-backdrop { display: block; }
+  .content { padding: var(--sp-3); }
+  .topbar { padding: 0 var(--sp-3); }
+  .stat-grid { grid-template-columns: 1fr; }
+  .form-grid { grid-template-columns: 1fr; }
+}

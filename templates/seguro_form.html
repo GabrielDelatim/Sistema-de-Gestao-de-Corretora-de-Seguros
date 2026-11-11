@@ -1,0 +1,100 @@
+{% extends "layout/base.html" %}
+
+{% block titulo %}{{ 'Alterar Seguro' if seguro else 'Cadastrar Seguro' }}{% endblock %}
+{% block migalha %}
+  <a href="{{ url_for('cliente_detalhe', id_cliente=cliente.id) }}" style="color:var(--text-faint);">{{ cliente.nome }}</a>
+  <span>·</span>
+  <span>{{ 'Editar' if seguro else 'Novo Seguro' }}</span>
+{% endblock %}
+{% block cabecalho %}{{ 'Alterar Apólice de Seguro' if seguro else 'Cadastrar Nova Apólice' }}{% endblock %}
+
+{% block conteudo %}
+
+{% set v = valores if valores else seguro %}
+
+<div class="card" style="max-width:780px; margin-bottom:var(--sp-4); background:var(--bg); border:1px solid var(--border);">
+  <div class="text-faint" style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em;">Cliente Titular</div>
+  <div style="font-size:16px; font-weight:700; color:var(--text); margin-top:2px;">{{ cliente.nome }} ({{ cliente.documento }})</div>
+  <div class="text-faint" style="font-size:12px;">Comercial: {{ cliente.comercial }}</div>
+</div>
+
+<form method="POST" class="card" style="max-width:780px;" novalidate>
+  <div class="card-header">
+    <h2>
+      {{ icone('shield', tamanho=18) }}
+      Especificações da Apólice
+    </h2>
+    <span class="muted">* Campos obrigatórios</span>
+  </div>
+
+  <div class="form-grid">
+
+    <div class="field {{ 'has-error' if erros and erros.ramo }}">
+      <label for="ramo">Ramo do Seguro *</label>
+      <select class="input" id="ramo" name="ramo">
+        {% for opcao in ['Automóvel', 'Residencial', 'Empresarial', 'Frota', 'Vida', 'Saúde', 'Responsabilidade Civil'] %}
+          <option value="{{ opcao }}" {{ 'selected' if v and v.ramo == opcao }}>{{ opcao }}</option>
+        {% endfor %}
+      </select>
+      {% if erros and erros.ramo %}<p class="error-msg">{{ erros.ramo }}</p>{% endif %}
+    </div>
+
+    <div class="field">
+      <label for="item">Item Segurado (Descrição/Placa)</label>
+      <input class="input" type="text" id="item" name="item" value="{{ v.item if v else '' }}" placeholder="Ex: Honda Civic 2021 — ABC1D23 ou Galpão Fabril">
+    </div>
+
+    <div class="field {{ 'has-error' if erros and erros.seguradora }}">
+      <label for="seguradora">Companhia Seguradora *</label>
+      <input class="input" type="text" id="seguradora" name="seguradora" value="{{ v.seguradora if v else '' }}" placeholder="Ex: Porto Seguro, Allianz, Bradesco" required>
+      {% if erros and erros.seguradora %}<p class="error-msg">{{ erros.seguradora }}</p>{% endif %}
+    </div>
+
+    <div class="field {{ 'has-error' if erros and erros.numero_apolice }}">
+      <label for="numero_apolice">Nº da Apólice Emitida *</label>
+      <input class="input" type="text" id="numero_apolice" name="numero_apolice" value="{{ v.numero_apolice if v else '' }}" placeholder="Ex: 0531.00.123456" required>
+      {% if erros and erros.numero_apolice %}<p class="error-msg">{{ erros.numero_apolice }}</p>{% endif %}
+    </div>
+
+    <div class="field">
+      <label for="premio">Prêmio Total da Apólice (R$)</label>
+      <input class="input" type="number" step="0.01" min="0" id="premio" name="premio" value="{{ v.premio if v else '' }}" placeholder="0,00">
+    </div>
+
+    <div class="field">
+      <label for="comissao">Comissão da Corretora (%)</label>
+      <input class="input" type="number" step="0.1" min="0" id="comissao" name="comissao" value="{{ v.comissao if v else '' }}" placeholder="Ex: 15.0">
+    </div>
+
+    <div class="field full">
+      <label for="forma_pagamento">Condições & Forma de Pagamento</label>
+      <input class="input" type="text" id="forma_pagamento" name="forma_pagamento" value="{{ v.forma_pagamento if v else '' }}" placeholder="Ex: Boleto bancário em 4x sem juros ou Débito em conta">
+    </div>
+
+    <div class="field {{ 'has-error' if erros and erros.vigencia }}">
+      <label for="vigencia_inicio">Início da Vigência *</label>
+      <input class="input" type="date" id="vigencia_inicio" name="vigencia_inicio"
+             value="{{ (v.vigencia_inicio.isoformat() if v.vigencia_inicio is not string else v.vigencia_inicio) if v and v.vigencia_inicio else '' }}" required>
+    </div>
+
+    <div class="field {{ 'has-error' if erros and erros.vigencia }}">
+      <label for="vigencia_fim">Término da Vigência (Vencimento) *</label>
+      <input class="input" type="date" id="vigencia_fim" name="vigencia_fim"
+             value="{{ (v.vigencia_fim.isoformat() if v.vigencia_fim is not string else v.vigencia_fim) if v and v.vigencia_fim else '' }}" required>
+      {% if erros and erros.vigencia %}<p class="error-msg">{{ erros.vigencia }}</p>{% endif %}
+      <p class="hint">A 30 dias desta data, o sistema abre automaticamente o card de renovação no Kanban.</p>
+    </div>
+  </div>
+
+  <div class="flex gap-3" style="justify-content:flex-end; border-top:1px solid var(--border); padding-top:var(--sp-4); margin-top:var(--sp-2);">
+    <a class="btn btn-secondary" href="{{ url_for('seguro_detalhe', id_seguro=seguro.id) if seguro else url_for('cliente_detalhe', id_cliente=cliente.id) }}">
+      Cancelar
+    </a>
+    <button class="btn btn-primary" type="submit">
+      {{ icone('check', tamanho=15) }}
+      {{ 'Atualizar Apólice' if seguro else 'Salvar Apólice' }}
+    </button>
+  </div>
+</form>
+
+{% endblock %}

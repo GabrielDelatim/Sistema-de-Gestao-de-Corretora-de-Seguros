@@ -1,0 +1,355 @@
+{% extends "layout/base.html" %}
+
+{% block titulo %}Card #{{ card.id }} · {{ card.tipo }}{% endblock %}
+{% block migalha %}
+  <a href="{{ url_for('pipeline', id_quadro=quadro.id) }}" style="color:var(--text-faint);">{{ quadro.nome }}</a>
+  <span>·</span>
+  <span>#{{ card.id }}</span>
+{% endblock %}
+{% block cabecalho %}Cartão de Negociação{% endblock %}
+
+{% block acoes_topbar %}
+  <a class="btn btn-secondary" href="{{ url_for('pipeline', id_quadro=quadro.id) }}">
+    Voltar ao Quadro
+  </a>
+
+  {% if card.referencia_tipo == 'seguro' and referencia %}
+    <a class="btn btn-secondary" href="{{ url_for('seguro_detalhe', id_seguro=referencia.id) }}">
+      {{ icone('shield', tamanho=15) }}
+      Ir para Seguro
+    </a>
+  {% elif referencia %}
+    <a class="btn btn-secondary" href="{{ url_for('sinistro_detalhe', id_sinistro=referencia.id) }}">
+      Ir para Sinistro
+    </a>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('card_deletar', id_card=card.id) }}"
+        onsubmit="return confirm('Excluir este card? O registro do cliente e apólice serão preservados.');" style="display:inline;">
+    <button class="btn btn-danger" type="submit">
+      {{ icone('trash', tamanho=15) }}
+      Excluir Card
+    </button>
+  </form>
+{% endblock %}
+
+{% block conteudo %}
+
+  <!-- Cabeçalho Informativo do Card -->
+  <div class="card" style="margin-bottom:var(--sp-5);">
+    <div class="flex items-center justify-between" style="flex-wrap:wrap; gap:var(--sp-3);">
+      <div>
+        <div style="font-size:18px; font-weight:700; color:var(--text);">
+          #{{ card.id }} · {{ card.tipo }} · {{ cliente.nome if cliente else 'Cliente não identificado' }}
+        </div>
+        <div class="text-faint" style="font-size:12.5px; margin-top:3px;">
+          Criado em {{ card.data_criacao|data_br }} por <strong>{{ card.criado_por }}</strong>
+          {% if referencia %} · Registro Vinculado: <em>{{ referencia.status }}</em>{% endif %}
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <span class="text-faint" style="font-size:12px;">Etapa:</span>
+        {% set status_badge = 'success' if card.coluna == 'Finalizado' else ('danger' if card.coluna == 'Perdido' else 'info') %}
+        <span class="badge {{ status_badge }}" style="font-size:13px; padding:4px 12px;">
+          {{ card.coluna }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid; grid-template-columns: 1fr 360px; gap:var(--sp-5); align-items:start;">
+
+    <!-- Coluna Esquerda: Ficha, Tarefas, Comentários -->
+    <div style="display:flex; flex-direction:column; gap:var(--sp-5);">
+
+      <!-- Ficha de Dados do Ano Anterior (RF17) -->
+      {% if ficha %}
+        <div class="card">
+          <div class="card-header">
+            <h2>
+              {{ icone('shield', tamanho=18) }}
+              Ficha de Referência (Dados da Apólice Anterior)
+            </h2>
+            <span class="muted">Base da Negociação</span>
+          </div>
+          <div class="dados-grid">
+            {% for rotulo, valor in ficha.items() %}
+              <div class="dado">
+                <div class="rotulo">{{ rotulo }}</div>
+                <div class="valor">
+                  {% if rotulo == 'Prêmio anterior' %}
+                    <strong style="color:var(--accent);">{{ valor|moeda }}</strong>
+                  {% else %}
+                    {{ valor or '—' }}
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+      <!-- Tarefas Operacionais (RF14, RF15, RF16) -->
+      <div class="card">
+        <div class="card-header">
+          <h2>
+            {{ icone('task', tamanho=18) }}
+            Tarefas da Negociação
+          </h2>
+          <span class="badge info">{{ tarefas|length }} total</span>
+        </div>
+
+        {% if tarefas %}
+          <div class="table-wrap" style="border:none; margin-bottom:var(--sp-4);">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tipo</th>
+                  <th>Instruções</th>
+                  <th>Prazo</th>
+                  <th>Urgência</th>
+                  <th>Assistente</th>
+                  <th>Status</th>
+                  <th style="text-align:right;">Ação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for t in tarefas %}
+                  <tr>
+                    <td class="cell-primary">{{ t.tipo }}</td>
+                    <td class="cell-muted">{{ t.descricao }}</td>
+                    <td>
+                      {% set atrasada = (t.prazo < hoje and t.status == 'Pendente') %}
+                      <span class="{{ 'text-danger' if atrasada else '' }}">
+                        {{ t.prazo|data_br }}
+                      </span>
+                    </td>
+                    <td>
+                      <span class="badge {{ 'danger' if t.urgencia == 'Alta' else ('warning' if t.urgencia == 'Média' else 'neutral') }}">
+                        {{ t.urgencia }}
+                      </span>
+                    </td>
+                    <td class="cell-muted">{{ t.assistente }}</td>
+                    <td>
+                      <span class="badge {{ 'success' if t.status == 'Entregue' else 'info' }}">
+                        {{ t.status }}
+                      </span>
+                    </td>
+                    <td class="actions">
+                      {% if t.status == 'Pendente' and usuario_logado.perfil in ['Administrador', 'Assistente'] %}
+                        <form method="POST" action="{{ url_for('tarefa_entregar', id_tarefa=t.id) }}" style="display:inline;">
+                          <button class="btn btn-success btn-sm" type="submit">
+                            {{ icone('check', tamanho=13) }}
+                            Entregar
+                          </button>
+                        </form>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state" style="padding:var(--sp-4);">
+            <p>Nenhuma tarefa solicitada para este cartão.</p>
+          </div>
+        {% endif %}
+
+        <!-- Criar Tarefa (Comercial / Administrador) -->
+        {% if usuario_logado.perfil in ['Administrador', 'Comercial'] %}
+          <details style="margin-top:var(--sp-3); border-top:1px solid var(--border-subtle); padding-top:var(--sp-3);">
+            <summary style="cursor:pointer; font-size:13.5px; font-weight:600; color:var(--accent-light); display:inline-flex; align-items:center; gap:6px;">
+              {{ icone('plus', tamanho=15) }}
+              Solicitar Nova Tarefa ao Assistente
+            </summary>
+            <form method="POST" action="{{ url_for('tarefa_nova', id_card=card.id) }}" style="margin-top:var(--sp-4);">
+              <div class="form-grid">
+                <div class="field">
+                  <label for="tipo">Tipo de Atividade</label>
+                  <select class="input" id="tipo" name="tipo">
+                    {% for t in tipos_tarefa %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="urgencia">Urgência</label>
+                  <select class="input" id="urgencia" name="urgencia">
+                    {% for u in urgencias %}<option value="{{ u }}">{{ u }}</option>{% endfor %}
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="prazo">Prazo Limite</label>
+                  <input class="input" type="date" id="prazo" name="prazo" required>
+                </div>
+                <div class="field">
+                  <label for="assistente">Assistente Designado</label>
+                  <select class="input" id="assistente" name="assistente">
+                    {% for a in assistentes %}<option value="{{ a }}">{{ a }}</option>{% endfor %}
+                  </select>
+                </div>
+                <div class="field full">
+                  <label for="descricao">Descrição / Instruções</label>
+                  <textarea class="input" id="descricao" name="descricao" placeholder="Detalhes do que o assistente precisa calcular, cotar ou emitir..." required></textarea>
+                </div>
+              </div>
+              <div class="flex" style="justify-content:flex-end;">
+                <button class="btn btn-primary" type="submit">Enviar Tarefa</button>
+              </div>
+            </form>
+          </details>
+        {% endif %}
+      </div>
+
+      <!-- Comentários e Histórico (RF13) -->
+      <div class="card">
+        <div class="card-header">
+          <h2>
+            {{ icone('comment', tamanho=18) }}
+            Histórico de Interações & Comentários
+          </h2>
+        </div>
+
+        {% if card.comentarios %}
+          <div style="display:flex; flex-direction:column; gap:var(--sp-3); margin-bottom:var(--sp-4);">
+            {% for c in card.comentarios %}
+              <div style="display:flex; gap:var(--sp-3); padding:var(--sp-3); background:var(--bg); border-radius:var(--radius); border:1px solid var(--border-subtle);">
+                <div style="width:30px; height:30px; border-radius:50%; background:var(--accent-soft); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0;">
+                  {{ c.autor[:2]|upper }}
+                </div>
+                <div style="flex:1;">
+                  <div class="flex items-center justify-between">
+                    <strong style="font-size:13px; color:var(--text);">{{ c.autor }}</strong>
+                    <span class="text-faint" style="font-size:11px;">{{ c.data|data_br }}</span>
+                  </div>
+                  <div style="font-size:13.5px; color:var(--text-muted); margin-top:3px;">{{ c.texto }}</div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="text-faint" style="font-size:13px; margin-bottom:var(--sp-4);">Nenhum comentário registrado ainda.</p>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('card_comentar', id_card=card.id) }}" class="flex gap-2">
+          <input class="input" type="text" name="texto" placeholder="Escreva uma observação para a equipe..." required>
+          <button class="btn btn-primary" type="submit">Comentar</button>
+        </form>
+      </div>
+
+    </div>
+
+    <!-- Coluna Direita: Anexos, Documento de Negociação e Conclusão -->
+    <div style="display:flex; flex-direction:column; gap:var(--sp-5);">
+
+      <!-- Anexos do Card (RF18) -->
+      <div class="card">
+        <div class="card-header">
+          <h2>
+            {{ icone('attachment', tamanho=18) }}
+            Anexos da Negociação
+          </h2>
+        </div>
+
+        {% if card.anexos %}
+          <ul style="display:flex; flex-direction:column; gap:8px; margin-bottom:var(--sp-4);">
+            {% for a in card.anexos %}
+              <li style="display:flex; align-items:center; justify-content:space-between; padding:8px 10px; background:var(--bg); border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
+                <a href="{{ url_for('anexo', nome_arquivo=a.nome) }}" target="_blank" style="color:var(--accent-light); font-weight:600; font-size:13px; word-break:break-all;">
+                  {{ a.nome }}
+                </a>
+                <form method="POST" action="{{ url_for('card_marcar_anexo', id_card=card.id, indice=loop.index0) }}" style="display:inline;">
+                  <button class="btn btn-sm {{ 'btn-primary' if a.importante else 'btn-secondary' }}" type="submit" title="Anexos importantes são enviados ao cadastro do cliente na finalização">
+                    {{ '★ Importante' if a.importante else '☆ Marcar' }}
+                  </button>
+                </form>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-faint" style="font-size:12.5px; margin-bottom:var(--sp-4);">Nenhum arquivo anexado a esta negociação.</p>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('card_anexar', id_card=card.id) }}" enctype="multipart/form-data">
+          <div class="field" style="margin-bottom:var(--sp-2);">
+            <label for="arquivo">Adicionar Proposta / Apólice / Documento</label>
+            <input class="input" type="file" id="arquivo" name="arquivo" required style="padding:6px;">
+          </div>
+          <label class="flex items-center gap-2" style="font-size:12px; margin-bottom:var(--sp-3); cursor:pointer;">
+            <input type="checkbox" name="importante"> Marcar como anexo importante (vai para o cliente)
+          </label>
+          <button class="btn btn-secondary btn-sm" type="submit" style="width:100%;">
+            Enviar Anexo
+          </button>
+        </form>
+      </div>
+
+      <!-- Documento de Negociação do Cadastro (RF10) -->
+      {% if documento %}
+        <div class="card">
+          <div class="card-header">
+            <h2>Documento de Negociação</h2>
+            <span class="badge neutral">{{ documento.status }}</span>
+          </div>
+          <div style="font-size:13px; font-weight:500; color:var(--text);">{{ documento.descricao }}</div>
+          <p class="hint" style="margin-top:6px;">
+            Este documento é sincronizado em tempo real com a ficha cadastral do cliente.
+          </p>
+          {% if cliente %}
+            <a class="btn btn-secondary btn-sm" style="width:100%; margin-top:var(--sp-3);"
+               href="{{ url_for('cliente_detalhe', id_cliente=cliente.id) }}">
+              Abrir Cadastro do Cliente
+            </a>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      <!-- Finalização do Card (RF21, RF22) -->
+      {% if card.coluna not in ['Finalizado', 'Perdido'] %}
+        <div class="card" style="border-top:3px solid var(--accent-light);">
+          <div class="card-header">
+            <h2>Concluir Negociação</h2>
+          </div>
+          <p class="hint" style="margin-bottom:var(--sp-3);">
+            Ao concluir, a apólice definitiva é ativada, o documento do cliente é arquivado e as métricas são atualizadas.
+          </p>
+          <form method="POST" action="{{ url_for('card_finalizar', id_card=card.id) }}">
+            <div class="field">
+              <label for="resultado">Resultado Final</label>
+              <select class="input" id="resultado" name="resultado" onchange="document.getElementById('campoMotivo').style.display = this.value === 'Perdido' ? 'block' : 'none'">
+                <option value="Renovado">Fechado / Renovado com Sucesso</option>
+                <option value="Perdido">Negociação Perdida</option>
+              </select>
+            </div>
+            <div class="field" id="campoMotivo" style="display:none;">
+              <label for="motivo_perda">Motivo da Perda (Obrigatório)</label>
+              <textarea class="input" id="motivo_perda" name="motivo_perda" placeholder="Ex: Preço acima do mercado, cliente vendeu o bem..."></textarea>
+              <p class="hint">Alimenta os relatórios de perda do comercial.</p>
+            </div>
+            <button class="btn btn-primary" type="submit" style="width:100%; padding:10px; font-weight:600;">
+              Finalizar e Atualizar Cadastro
+            </button>
+          </form>
+        </div>
+      {% else %}
+        <div class="card">
+          <div class="card-header">
+            <h2>Status de Encerramento</h2>
+            <span class="badge {{ 'success' if card.coluna == 'Finalizado' else 'danger' }}">{{ card.coluna }}</span>
+          </div>
+          {% if card.motivo_perda %}
+            <div class="alert-box danger" style="margin:0; font-size:12.5px;">
+              <strong>Motivo registrado:</strong> {{ card.motivo_perda }}
+            </div>
+          {% else %}
+            <div class="alert-box success" style="margin:0; font-size:12.5px;">
+              Negociação encerrada com sucesso e apólice ativada.
+            </div>
+          {% endif %}
+        </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+{% endblock %}

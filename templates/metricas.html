@@ -1,0 +1,146 @@
+{% extends "layout/base.html" %}
+
+{% block titulo %}Métricas de Desempenho{% endblock %}
+{% block migalha %}Gestão & Performance{% endblock %}
+{% block cabecalho %}Métricas Comerciais & Conversão{% endblock %}
+
+{% block conteudo %}
+
+  <!-- Filtro por Período (RF23) -->
+  <form method="GET" class="card" style="margin-bottom:var(--sp-4);">
+    <div class="flex gap-4" style="align-items:flex-end; flex-wrap:wrap;">
+      <div class="field" style="margin:0;">
+        <label for="inicio">Data Inicial</label>
+        <input class="input" type="date" id="inicio" name="inicio" value="{{ inicio }}">
+      </div>
+      <div class="field" style="margin:0;">
+        <label for="fim">Data Final</label>
+        <input class="input" type="date" id="fim" name="fim" value="{{ fim }}">
+      </div>
+      <button class="btn btn-primary" type="submit">
+        {{ icone('search', tamanho=15) }}
+        Filtrar Período
+      </button>
+      <a class="btn btn-ghost" href="{{ url_for('metricas') }}">Limpar Filtro</a>
+    </div>
+  </form>
+
+  <!-- Indicadores de Taxa de Sucesso -->
+  <section class="stat-grid">
+    <div class="stat-card">
+      <div class="header-row">
+        <span class="label">Taxa de Renovação</span>
+        <div class="icon-chip" style="background:#ECFDF5; color:#059669;">
+          {{ icone('renovacoes', tamanho=18) }}
+        </div>
+      </div>
+      <div class="value" style="color:var(--success);">{{ metricas.taxa_renovacao }}%</div>
+      <div class="sub">Eficiência de retenção</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="header-row">
+        <span class="label">Taxa de Conversão</span>
+        <div class="icon-chip info">
+          {{ icone('metricas', tamanho=18) }}
+        </div>
+      </div>
+      <div class="value" style="color:var(--text);">{{ metricas.taxa_conversao }}%</div>
+      <div class="sub">Fechamento sobre propostas</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="header-row">
+        <span class="label">Apólices Renovadas</span>
+        <div class="icon-chip purple">
+          {{ icone('check', tamanho=18) }}
+        </div>
+      </div>
+      <div class="value">{{ metricas.seguros_renovados }}</div>
+      <div class="sub">Contratos preservados</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="header-row">
+        <span class="label">Cancelamentos / Perdas</span>
+        <div class="icon-chip danger">
+          {{ icone('alert', tamanho=18) }}
+        </div>
+      </div>
+      <div class="value" style="color:var(--danger);">{{ metricas.seguros_cancelados + metricas.perdidos }}</div>
+      <div class="sub">Motivos registrados no card</div>
+    </div>
+  </section>
+
+  <!-- Volume Financeiro -->
+  <div class="stat-grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
+    <div class="stat-card">
+      <div class="label">Renovados x Perdidos</div>
+      <div class="value" style="font-size:24px; margin-top:8px;">
+        <span style="color:var(--success);">{{ metricas.seguros_renovados }}</span>
+        <span class="text-faint" style="font-size:18px; margin:0 4px;">x</span>
+        <span style="color:var(--danger);">{{ metricas.perdidos }}</span>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="label">Produção Total Emitida (Prêmio)</div>
+      <div class="value" style="font-size:24px; margin-top:8px; color:var(--text);">
+        {{ metricas.producao|moeda }}
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="label">Ganhos Previstos (Comissões)</div>
+      <div class="value" style="font-size:24px; margin-top:8px; color:var(--accent);">
+        {{ metricas.ganhos|moeda }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Gráfico Comparativo Mensal -->
+  <div class="card" style="margin-top:var(--sp-4);">
+    <div class="card-header">
+      <h2>
+        {{ icone('metricas', tamanho=18) }}
+        Evolução Mensal: Fechados x Perdidos
+      </h2>
+      <span class="badge info">{{ metricas.eventos|length }} evento(s) no período</span>
+    </div>
+
+    {% if meses %}
+      {% set maior = (meses|map(attribute="renovados")|list + meses|map(attribute="perdidos")|list)|max %}
+      <div style="display:flex; align-items:flex-end; gap:20px; height:220px; padding:16px 8px 0; border-bottom:1px solid var(--border-subtle);">
+        {% for m in meses %}
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:8px; height:100%;">
+            <div style="width:100%; display:flex; align-items:flex-end; justify-content:center; gap:6px; height:180px;">
+              <div title="Renovados: {{ m.renovados }}"
+                   style="width:16px; background:var(--chart-primary); border-radius:3px 3px 0 0; height:{{ (m.renovados / maior * 100)|round(1) if maior else 4 }}%; min-height:4px; transition: height 0.3s ease;">
+              </div>
+              <div title="Perdidos: {{ m.perdidos }}"
+                   style="width:16px; background:var(--chart-secondary); border-radius:3px 3px 0 0; height:{{ (m.perdidos / maior * 100)|round(1) if maior else 4 }}%; min-height:4px; transition: height 0.3s ease;">
+              </div>
+            </div>
+            <span style="font-size:12px; font-weight:500; color:var(--text-muted);">{{ m.mes }}</span>
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="flex items-center gap-4" style="margin-top:var(--sp-3); font-size:12.5px; color:var(--text-muted); justify-content:flex-end;">
+        <span class="flex items-center gap-2">
+          <span style="width:10px; height:10px; border-radius:2px; background:var(--chart-primary); display:inline-block;"></span>
+          Renovados / Fechados
+        </span>
+        <span class="flex items-center gap-2">
+          <span style="width:10px; height:10px; border-radius:2px; background:var(--chart-secondary); display:inline-block;"></span>
+          Perdidos
+        </span>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <p>Nenhum evento registrado no período selecionado.</p>
+      </div>
+    {% endif %}
+  </div>
+
+{% endblock %}
