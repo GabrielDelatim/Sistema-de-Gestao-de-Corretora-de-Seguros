@@ -11,7 +11,7 @@
 # Para rodar:
 #   pip install -r requirements.txt
 #   python app.py
-# Acesse http://localhost:5000 — login de teste: adm / 123456
+# Acesse http://localhost:5000
 # =============================================================================
 
 import csv
@@ -25,12 +25,13 @@ import uuid
 from datetime import date, datetime
 from functools import wraps
 
-from flask import (Flask, Response, flash, redirect, render_template, request,
+from flask import (Flask, Response, flash, jsonify, redirect, render_template, request,
                    send_from_directory, session, url_for)
 from werkzeug.security import check_password_hash
 from werkzeug.utils import secure_filename
 
 import data
+import database
 
 # -----------------------------------------------------------------------------
 # LOGS DO SISTEMA (Arquivo rotativo app.log + Console)
@@ -74,8 +75,10 @@ app.secret_key = _obter_chave_secreta()
 # Cookies seguros e limites contra DoS
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["PERMANENT_SESSION_LIFETIME"] = 28800  # 8 horas em segundos
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # Máximo de 16 MB por upload
-app.config["PASTA_ANEXOS"] = "uploads"
+app.config["PASTA_ANEXOS"] = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
+os.makedirs(app.config["PASTA_ANEXOS"], exist_ok=True)
 
 # Extensões permitidas para upload
 EXTENSOES_PERMITIDAS = {".pdf", ".png", ".jpg", ".jpeg", ".docx", ".xlsx", ".csv", ".txt"}
@@ -112,7 +115,16 @@ def filtro_moeda(valor):
 
 @app.template_filter("data_br")
 def filtro_data_br(valor_data):
-    return valor_data.strftime("%d/%m/%Y") if valor_data else "—"
+    """Aceita tanto objetos date/datetime quanto strings ISO (YYYY-MM-DD)."""
+    if not valor_data:
+        return "—"
+    if isinstance(valor_data, str):
+        try:
+            from datetime import date as _date
+            valor_data = _date.fromisoformat(valor_data[:10])
+        except (ValueError, TypeError):
+            return valor_data  # devolve como texto se não conseguir parsear
+    return valor_data.strftime("%d/%m/%Y")
 
 
 # -----------------------------------------------------------------------------
@@ -120,6 +132,9 @@ def filtro_data_br(valor_data):
 # -----------------------------------------------------------------------------
 @app.context_processor
 def injetar_globais():
+    # Não consulta o banco para requisições de arquivos estáticos
+    if request.endpoint == "static":
+        return {}
     usuario = usuario_atual()
     total_pendentes = len(data.tarefas_pendentes(usuario["nome"], usuario["perfil"])) if usuario else 0
     return {
@@ -138,14 +153,23 @@ def usuario_atual():
     return data.buscar_usuario(session["usuario_id"])
 
 
+def _usuario_ativo():
+    """Retorna o usuário da sessão somente se ele ainda estiver Ativo no banco."""
+    u = usuario_atual()
+    if u and u.get("status") == "Ativo":
+        return u
+    return None
+
+
 # -----------------------------------------------------------------------------
 # CONTROLE DE ACESSO
 # -----------------------------------------------------------------------------
 def login_obrigatorio(funcao_rota):
-    """Porteiro: sem sessão ativa, manda para o login."""
+    """Porteiro: sem sessão ativa ou usuário inativo, manda para o login."""
     @wraps(funcao_rota)
     def rota_protegida(*args, **kwargs):
-        if usuario_atual() is None:
+        if _usuario_ativo() is None:
+            session.clear()  # garante que sessão de usuário inativado seja limpa
             return redirect(url_for("login"))
         return funcao_rota(*args, **kwargs)
     return rota_protegida
@@ -157,8 +181,9 @@ def perfil_obrigatorio(*perfis_permitidos):
     def decorador(funcao_rota):
         @wraps(funcao_rota)
         def rota_protegida(*args, **kwargs):
-            usuario = usuario_atual()
+            usuario = _usuario_ativo()
             if usuario is None:
+                session.clear()
                 return redirect(url_for("login"))
             if usuario["perfil"] not in perfis_permitidos:
                 flash("Seu perfil não tem permissão para acessar essa área.", "erro")
@@ -166,6 +191,81 @@ def perfil_obrigatorio(*perfis_permitidos):
             return funcao_rota(*args, **kwargs)
         return rota_protegida
     return decorador
+
+
+# -----------------------------------------------------------------------------
+# HELPERS DE AUTORIZAÇÃO — impedem IDOR (acesso por troca de ID na URL)
+# -----------------------------------------------------------------------------
+RESULTADOS_VALIDOS = {"Renovado", "Perdido", "Cancelado", "Endossado", "Encerrado"}
+
+
+def _verificar_acesso_card(id_card):
+    """Retorna o card se o usuário atual tiver acesso, ou None + flash de erro.
+    Admin e Assistente enxergam cards para operação e suporte; Comercial enxerga os do seu quadro."""
+    usuario = _usuario_ativo()
+    card = data.buscar_card(id_card)
+    if card is None:
+        flash("Cartão não encontrado.", "erro")
+        return None
+    if usuario["perfil"] in ("Administrador", "Assistente"):
+        return card
+    ids_quadros = {q["id"] for q in data.quadros_do_usuario(usuario)}
+    if card["quadro_id"] in ids_quadros:
+        return card
+    flash("Você não tem acesso a este cartão.", "erro")
+    return None
+
+
+def _verificar_acesso_seguro(id_seguro):
+    """Retorna o seguro se o usuário tiver acesso via cliente, ou None."""
+    usuario = _usuario_ativo()
+    seguro = data.buscar_seguro(id_seguro)
+    if seguro is None:
+        flash("Seguro não encontrado.", "erro")
+        return None
+    if usuario["perfil"] in ("Administrador", "Assistente"):
+        return seguro
+    cliente = data.buscar_cadastro(seguro["cadastro_id"])
+    if cliente and (not cliente.get("comercial") or cliente["comercial"] == usuario["nome"]):
+        return seguro
+    flash("Você não tem acesso a este seguro.", "erro")
+    return None
+
+
+def _verificar_acesso_cliente(id_cliente):
+    """Retorna o cliente se o usuário tiver acesso, ou None."""
+    usuario = _usuario_ativo()
+    cliente = data.buscar_cadastro(id_cliente)
+    if cliente is None:
+        flash("Cliente não encontrado.", "erro")
+        return None
+    if usuario["perfil"] in ("Administrador", "Assistente"):
+        return cliente
+    if not cliente.get("comercial") or cliente["comercial"] == usuario["nome"]:
+        return cliente
+    flash("Você não tem acesso a este cliente.", "erro")
+    return None
+
+
+def _url_segura(url):
+    """Valida que o redirect 'voltar' é uma URL relativa interna (evita open redirect)."""
+    if url and url.startswith("/") and not url.startswith("//"):
+        return url
+    return None
+
+
+# -----------------------------------------------------------------------------
+# HANDLER DE ERROS
+# -----------------------------------------------------------------------------
+@app.errorhandler(500)
+def erro_interno(e):
+    logger.exception("Erro interno não tratado: %s", e)
+    return render_template("erro_500.html"), 500
+
+
+@app.errorhandler(404)
+def nao_encontrado(e):
+    return render_template("erro_404.html"), 404
 
 
 def _data_do_form(campo):
@@ -180,10 +280,8 @@ def _data_do_form(campo):
 
 
 def _ip_cliente():
-    """Obtém o IP real do cliente mesmo através de proxy reverso."""
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    """Usa o IP real da conexão TCP. Não confia em X-Forwarded-For sem
+    proxy configurado — cabeçalho forjável por qualquer cliente."""
     return request.remote_addr or "127.0.0.1"
 
 
@@ -437,9 +535,8 @@ def cliente_novo():
 def cliente_detalhe(id_cliente):
     """Tela 'Dados do Cliente' (wireframe 15.9): dados cadastrais, documentos
     de negociação e navegação para os seguros do cliente."""
-    cliente = data.buscar_cadastro(id_cliente)
+    cliente = _verificar_acesso_cliente(id_cliente)
     if cliente is None:
-        flash("Cliente não encontrado.", "erro")
         return redirect(url_for("clientes"))
 
     return render_template(
@@ -474,6 +571,7 @@ def cliente_editar(id_cliente):
 
 @app.route("/clientes/<int:id_cliente>/deletar", methods=["POST"])
 @login_obrigatorio
+@perfil_obrigatorio("Administrador")
 def cliente_deletar(id_cliente):
     data.deletar_cadastro(id_cliente)
     flash("Cliente removido.", "sucesso")
@@ -521,9 +619,8 @@ def seguro_novo(id_cliente):
 def seguro_detalhe(id_seguro):
     """Tela de Seguros (wireframe 15.10): dados da apólice, sinistros
     vinculados, anexos e navegação para o card."""
-    seguro = data.buscar_seguro(id_seguro)
+    seguro = _verificar_acesso_seguro(id_seguro)
     if seguro is None:
-        flash("Seguro não encontrado.", "erro")
         return redirect(url_for("clientes"))
 
     return render_template(
@@ -562,8 +659,10 @@ def seguro_editar(id_seguro):
 @app.route("/seguros/<int:id_seguro>/deletar", methods=["POST"])
 @login_obrigatorio
 def seguro_deletar(id_seguro):
-    seguro = data.buscar_seguro(id_seguro)
-    id_cliente = seguro["cadastro_id"] if seguro else None
+    seguro = _verificar_acesso_seguro(id_seguro)
+    if seguro is None:
+        return redirect(url_for("clientes"))
+    id_cliente = seguro["cadastro_id"]
     data.deletar_seguro(id_seguro)
     flash("Seguro excluído.", "sucesso")
     return redirect(url_for("cliente_detalhe", id_cliente=id_cliente))
@@ -704,7 +803,7 @@ def quadros():
 @login_obrigatorio
 def pipeline(id_quadro):
     """Pipeline Kanban (wireframe 15.5) — as colunas vêm do próprio quadro."""
-    usuario = usuario_atual()
+    usuario = _usuario_ativo()
     quadro = data.buscar_quadro(id_quadro)
 
     if quadro is None:
@@ -712,34 +811,41 @@ def pipeline(id_quadro):
         return redirect(url_for("quadros"))
 
     # Regra de negócio: o usuário só enxerga os quadros aos quais pertence.
-    if quadro not in data.quadros_do_usuario(usuario):
+    ids_permitidos = {q["id"] for q in data.quadros_do_usuario(usuario)}
+    if quadro["id"] not in ids_permitidos:
         flash("Você não está vinculado a esse quadro.", "erro")
         return redirect(url_for("quadros"))
 
-    # monta {coluna: [cards]} já com a referência (seguro/sinistro) resolvida
+    # monta {coluna: [cards]} já com a referência (seguro/sinistro) resolvida e etiquetas
     colunas = {}
     for coluna in quadro["colunas"]:
         colunas[coluna] = []
     for card in data.cards_do_quadro(id_quadro):
         referencia, cliente = data.referencia_do_card(card)
         tarefas = data.tarefas_do_card(card["id"])
+        etiquetas = data.listar_etiquetas_por_card(card["id"])
         colunas.setdefault(card["coluna"], []).append({
             **card,
             "referencia": referencia,
             "cliente": cliente,
+            "etiquetas": etiquetas,
             "total_tarefas": len(tarefas),
             "tarefas_pendentes": len([t for t in tarefas if t.get("status") == "Pendente"]),
             "total_comentarios": len(card.get("comentarios", [])),
         })
 
-    # Tanto o seletor de cliente quanto o de apólice-base só mostram quem é
-    # do comercial dono deste quadro — não faz sentido oferecer um cliente
-    # de outro comercial na hora de abrir um card aqui.
+    # Assistentes e Administradores podem mover cards entre quadros de comerciais diferentes
+    quadros_transferencia = []
+    if usuario["perfil"] in ("Administrador", "Assistente"):
+        quadros_transferencia = [q for q in data.listar_quadros() if q["id"] != quadro["id"] and q["tipo"] == quadro["tipo"]]
+
     return render_template(
         "pipeline.html",
         pagina_ativa="quadros",
         quadro=quadro,
         colunas=colunas,
+        etiquetas_quadro=data.listar_etiquetas_por_quadro(id_quadro),
+        quadros_transferencia=quadros_transferencia,
         clientes=data.clientes_do_comercial(quadro["comercial"]),
         apolices=data.apolices_ativas(comercial=quadro["comercial"], com_cliente=True),
         tipos_card=[t for t, ref in data.TIPOS_CARD.items() if ref == ("sinistro" if quadro["tipo"] == "Sinistro" else "seguro")],
@@ -782,7 +888,8 @@ def card_novo(id_quadro):
             return redirect(url_for("pipeline", id_quadro=id_quadro))
         id_cadastro = base["cadastro_id"]
 
-    elif tipo == "Novo" and request.form.get("modo_cliente") == "novo":
+    elif request.form.get("modo_cliente") == "novo":
+        # Cliente ainda não existe no sistema — vale para qualquer tipo de seguro
         nome_novo = request.form.get("novo_nome", "").strip()
         documento_novo = request.form.get("novo_documento", "").strip()
         if not nome_novo or not documento_novo:
@@ -794,7 +901,7 @@ def card_novo(id_quadro):
             "documento": documento_novo,
             "tipo": request.form.get("novo_tipo", "PF"),
             "comercial": quadro["comercial"],
-            "origem": "Card de novo seguro",
+            "origem": f"Card de {tipo}",
             "status": "Ativo",
         })
         id_cadastro = cadastro["id"]
@@ -812,6 +919,7 @@ def card_novo(id_quadro):
         seguro_base_id=int(base) if base else None,
         criado_por=usuario["nome"],
         dados=request.form,
+        quadro_id=id_quadro,
     )
 
     if card is None:
@@ -830,9 +938,8 @@ def card_deletar(id_card):
     seguro/sinistro que ele criou e o cadastro do cliente nunca são
     apagados por essa rota — ver data.deletar_card().
     """
-    card = data.buscar_card(id_card)
+    card = _verificar_acesso_card(id_card)
     if card is None:
-        flash("Card não encontrado.", "erro")
         return redirect(url_for("quadros"))
 
     id_quadro = card["quadro_id"]
@@ -845,9 +952,14 @@ def card_deletar(id_card):
 @login_obrigatorio
 def card_mover():
     """Chamado via fetch() quando um cartão é arrastado para outra coluna."""
-    corpo = request.get_json()
-    sucesso = data.mover_card(int(corpo["id_card"]), corpo["coluna_destino"])
-    return {"sucesso": sucesso}
+    corpo = request.get_json(silent=True)
+    if not corpo or "id_card" not in corpo or "coluna_destino" not in corpo:
+        return jsonify({"sucesso": False, "erro": "Payload inválido"}), 400
+    try:
+        sucesso = data.mover_card(int(corpo["id_card"]), corpo["coluna_destino"])
+    except (ValueError, TypeError):
+        return jsonify({"sucesso": False, "erro": "ID inválido"}), 400
+    return jsonify({"sucesso": sucesso})
 
 
 # =============================================================================
@@ -859,9 +971,8 @@ def card_mover():
 def card_detalhe(id_card):
     """Tela do Cartão (wireframe 15.6): ficha, anexos, tarefas, comentários e
     navegação para a referência (seguro ou sinistro)."""
-    card = data.buscar_card(id_card)
+    card = _verificar_acesso_card(id_card)
     if card is None:
-        flash("Cartão não encontrado.", "erro")
         return redirect(url_for("quadros"))
 
     referencia, cliente = data.referencia_do_card(card)
@@ -882,11 +993,17 @@ def card_detalhe(id_card):
             "Forma de pagamento": referencia["forma_pagamento"],
         }
 
+    quadro = data.buscar_quadro(card["quadro_id"])
+    usuario = _usuario_ativo()
+    quadros_transferencia = []
+    if usuario["perfil"] in ("Administrador", "Assistente"):
+        quadros_transferencia = [q for q in data.listar_quadros() if q["id"] != card["quadro_id"] and q["tipo"] == quadro["tipo"]]
+
     return render_template(
         "card_detalhe.html",
         pagina_ativa="quadros",
         card=card,
-        quadro=data.buscar_quadro(card["quadro_id"]),
+        quadro=quadro,
         referencia=referencia,
         cliente=cliente,
         ficha=ficha,
@@ -895,23 +1012,126 @@ def card_detalhe(id_card):
         assistentes=[u["nome"] for u in data.USUARIOS if u["perfil"] in ("Assistente", "Administrador")],
         tipos_tarefa=data.TIPOS_TAREFA,
         urgencias=data.URGENCIAS,
+        etiquetas_quadro=data.listar_etiquetas_por_quadro(card["quadro_id"]),
+        etiquetas_card=data.listar_etiquetas_por_card(id_card),
+        quadros_transferencia=quadros_transferencia,
     )
+
+
+@app.route("/cards/<int:id_card>/transferir_quadro", methods=["POST"])
+@login_obrigatorio
+def card_transferir_quadro(id_card):
+    """Permite que Assistentes e Administradores movam cards entre quadros de comerciais diferentes."""
+    usuario = _usuario_ativo()
+    if usuario["perfil"] not in ("Administrador", "Assistente"):
+        flash("Apenas Assistentes e Administradores podem transferir cartões entre quadros.", "erro")
+        return redirect(url_for("card_detalhe", id_card=id_card))
+
+    corpo = request.get_json(silent=True) or {}
+    novo_quadro_id = request.form.get("novo_quadro_id") or corpo.get("novo_quadro_id")
+    if not novo_quadro_id:
+        if request.is_json:
+            return jsonify({"sucesso": False, "erro": "Quadro não informado"}), 400
+        flash("Selecione o quadro de destino.", "erro")
+        return redirect(url_for("card_detalhe", id_card=id_card))
+
+    try:
+        novo_quadro_id = int(novo_quadro_id)
+    except (ValueError, TypeError):
+        if request.is_json:
+            return jsonify({"sucesso": False, "erro": "ID inválido"}), 400
+        flash("Quadro inválido.", "erro")
+        return redirect(url_for("card_detalhe", id_card=id_card))
+
+    sucesso, msg = data.transferir_card_quadro(id_card, novo_quadro_id, usuario["nome"])
+    if sucesso:
+        flash(msg, "sucesso")
+        if request.is_json:
+            return jsonify({"sucesso": True, "mensagem": msg})
+        return redirect(url_for("pipeline", id_quadro=novo_quadro_id))
+    else:
+        flash(msg, "erro")
+        if request.is_json:
+            return jsonify({"sucesso": False, "erro": msg}), 400
+        return redirect(url_for("card_detalhe", id_card=id_card))
 
 
 @app.route("/cards/<int:id_card>/comentar", methods=["POST"])
 @login_obrigatorio
 def card_comentar(id_card):
-    data.comentar_card(id_card, usuario_atual()["nome"], request.form.get("texto", ""))
+    card = _verificar_acesso_card(id_card)
+    if card is None:
+        return redirect(url_for("quadros"))
+    data.comentar_card(id_card, _usuario_ativo()["nome"], request.form.get("texto", ""))
     return redirect(url_for("card_detalhe", id_card=id_card))
+
+
+@app.route("/cards/<int:id_card>/comentar_imagem", methods=["POST"])
+@login_obrigatorio
+def card_comentar_imagem(id_card):
+    """Recebe uma imagem colada (Ctrl+V) via fetch/FormData e salva como
+    comentário especial '[IMAGEM:nome_arquivo]' no histórico do card."""
+    card = _verificar_acesso_card(id_card)
+    if card is None:
+        return jsonify({"erro": "Acesso negado"}), 403
+    try:
+        nome = _salvar_anexo(request.files.get("imagem"))
+        if not nome:
+            return jsonify({"erro": "Nenhum arquivo recebido"}), 400
+        autor = _usuario_ativo()["nome"]
+        data.comentar_card(id_card, autor, f"[IMAGEM:{nome}]")
+        # Retorna URL para o JS exibir a imagem imediatamente, sem reload
+        url = url_for("anexo", nome_arquivo=nome)
+        return jsonify({"ok": True, "url": url, "nome": nome})
+    except ValueError as e:
+        return jsonify({"erro": str(e)}), 400
+    except Exception:
+        logger.exception("Erro ao comentar imagem no card %s", id_card)
+        return jsonify({"erro": "Erro interno ao salvar imagem"}), 500
+
+
+# ---------------------------------------------------------------------------
+# BUSCA GLOBAL DE CARDS
+# ---------------------------------------------------------------------------
+@app.route("/cards/busca")
+@login_obrigatorio
+def cards_busca():
+    """Pesquisa cards nos quadros visíveis para o usuário logado."""
+    termo = request.args.get("q", "").strip()
+    usuario = _usuario_ativo()
+    quadros = data.quadros_do_usuario(usuario)
+    ids_quadros = [q["id"] for q in quadros]
+
+    resultados = []
+    if termo and ids_quadros:
+        resultados = data.buscar_cards_por_texto(termo, ids_quadros)
+
+    return render_template(
+        "cards_busca.html",
+        resultados=resultados,
+        termo=termo,
+        total=len(resultados),
+    )
 
 
 @app.route("/cards/<int:id_card>/anexos", methods=["POST"])
 @login_obrigatorio
 def card_anexar(id_card):
-    nome = _salvar_anexo(request.files.get("arquivo"))
-    if nome:
-        data.anexar_no_card(id_card, nome, importante=bool(request.form.get("importante")))
-        flash("Anexo adicionado ao cartão.", "sucesso")
+    card = _verificar_acesso_card(id_card)
+    if card is None:
+        return redirect(url_for("quadros"))
+    try:
+        nome = _salvar_anexo(request.files.get("arquivo"))
+        if nome:
+            data.anexar_no_card(id_card, nome, importante=bool(request.form.get("importante")))
+            flash("Anexo adicionado ao cartão.", "sucesso")
+        else:
+            flash("Nenhum arquivo selecionado.", "erro")
+    except ValueError as e:
+        flash(str(e), "erro")
+    except Exception as e:
+        logger.exception("Erro ao salvar anexo do card %s", id_card)
+        flash("Erro ao salvar o arquivo. Tente novamente.", "erro")
     return redirect(url_for("card_detalhe", id_card=id_card))
 
 
@@ -930,7 +1150,21 @@ def card_finalizar(id_card):
     """Finalização (seção 8.7): atualiza status no documento do cadastro,
     anexa os documentos importantes, atualiza o seguro e alimenta as métricas.
     Se o resultado for perda, o motivo é obrigatório (RF22)."""
-    resultado = request.form.get("resultado", "Renovado")
+    card = data.buscar_card(id_card)
+    if card is None:
+        flash("Cartão não encontrado.", "erro")
+        return redirect(url_for("quadros"))
+
+    # Idempotência: não finaliza duas vezes
+    if card.get("coluna") in data.COLUNAS_FINAIS:
+        flash("Este cartão já foi finalizado.", "aviso")
+        return redirect(url_for("card_detalhe", id_card=id_card))
+
+    resultado = request.form.get("resultado", "").strip()
+    if resultado not in RESULTADOS_VALIDOS:
+        flash(f"Resultado inválido. Escolha: {', '.join(sorted(RESULTADOS_VALIDOS))}.", "erro")
+        return redirect(url_for("card_detalhe", id_card=id_card))
+
     motivo = request.form.get("motivo_perda", "").strip()
 
     if resultado == "Perdido" and not motivo:
@@ -972,9 +1206,14 @@ def tarefa_nova(id_card):
 def tarefa_entregar(id_tarefa):
     """Quem entrega a tarefa é o Assistente (hierarquia da seção 13)."""
     tarefa = data.buscar_tarefa(id_tarefa)
+    if tarefa is None:
+        flash("Tarefa não encontrada.", "erro")
+        return redirect(url_for("quadros"))
     data.entregar_tarefa(id_tarefa)
     flash("Tarefa entregue.", "sucesso")
-    return redirect(request.form.get("voltar") or url_for("card_detalhe", id_card=tarefa["card_id"]))
+    # Validação anti open-redirect: só aceita URLs relativas internas
+    voltar = _url_segura(request.form.get("voltar"))
+    return redirect(voltar or url_for("card_detalhe", id_card=tarefa["card_id"]))
 
 
 # =============================================================================
@@ -1017,6 +1256,7 @@ def relatorios():
 
 @app.route("/relatorios/exportar")
 @login_obrigatorio
+@perfil_obrigatorio("Administrador", "Comercial")
 def relatorio_exportar():
     """A 'lista exportável' do wireframe 15.13: devolve o resultado da busca
     como um arquivo CSV, que abre direto no Excel."""
@@ -1110,7 +1350,16 @@ def usuario_deletar(id_usuario):
 @app.route("/anexos/<nome_arquivo>")
 @login_obrigatorio
 def anexo(nome_arquivo):
-    return send_from_directory(app.config["PASTA_ANEXOS"], nome_arquivo)
+    # Por padrão serve inline (para abrir imagens e PDFs no card sem baixar).
+    # Se o parâmetro ?download=1 for passado, força o download.
+    baixar = request.args.get("download") == "1"
+    response = send_from_directory(
+        app.config["PASTA_ANEXOS"],
+        nome_arquivo,
+        as_attachment=baixar,
+    )
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 # =============================================================================
@@ -1151,5 +1400,138 @@ def configuracoes():
     return render_template("configuracoes.html", pagina_ativa="configuracoes", config=dados)
 
 
+# =============================================================================
+# ETIQUETAS (Labels estilo Trello)
+# =============================================================================
+
+@app.route("/api/quadros/<int:quadro_id>/etiquetas", methods=["GET"])
+@login_obrigatorio
+def api_etiquetas_quadro(quadro_id):
+    """Retorna as etiquetas do quadro em JSON."""
+    etiquetas = data.listar_etiquetas_por_quadro(quadro_id)
+    return jsonify(etiquetas)
+
+
+@app.route("/api/quadros/<int:quadro_id>/etiquetas", methods=["POST"])
+@login_obrigatorio
+def api_criar_etiqueta(quadro_id):
+    """Cria uma etiqueta e a vincula ao quadro."""
+    payload = request.get_json(force=True, silent=True) or {}
+    nome = payload.get("nome", "").strip()
+    cor = payload.get("cor", "#3498db").strip()
+    if not nome:
+        return jsonify({"erro": "Nome obrigatório"}), 400
+    etiqueta_id = data.criar_etiqueta(nome, cor, quadro_id)
+    return jsonify({"id": etiqueta_id, "nome": nome, "cor": cor}), 201
+
+
+@app.route("/api/etiquetas/<int:etiqueta_id>", methods=["PUT"])
+@login_obrigatorio
+def api_atualizar_etiqueta(etiqueta_id):
+    """Atualiza nome e/ou cor de uma etiqueta."""
+    payload = request.get_json(force=True, silent=True) or {}
+    nome = payload.get("nome", "").strip()
+    cor = payload.get("cor", "#3498db").strip()
+    if not nome:
+        return jsonify({"erro": "Nome obrigatório"}), 400
+    data.atualizar_etiqueta(etiqueta_id, nome, cor)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/etiquetas/<int:etiqueta_id>", methods=["DELETE"])
+@login_obrigatorio
+def api_deletar_etiqueta(etiqueta_id):
+    """Remove uma etiqueta e todos os seus vínculos."""
+    data.deletar_etiqueta(etiqueta_id)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/cards/<int:card_id>/etiquetas", methods=["GET"])
+@login_obrigatorio
+def api_etiquetas_card(card_id):
+    """Retorna as etiquetas vinculadas a um card."""
+    etiquetas = data.listar_etiquetas_por_card(card_id)
+    return jsonify(etiquetas)
+
+
+@app.route("/api/cards/<int:card_id>/etiquetas/<int:etiqueta_id>/toggle", methods=["POST"])
+@login_obrigatorio
+def api_toggle_etiqueta_card(card_id, etiqueta_id):
+    """Adiciona ou remove uma etiqueta do card (toggle)."""
+    adicionou = data.toggle_etiqueta_card(card_id, etiqueta_id)
+    return jsonify({"adicionou": adicionou})
+
+
+# =============================================================================
+# BUSCA E APÓLICES DE CLIENTES VIA API (para modais e buscas dinâmicas)
+# =============================================================================
+
+@app.route("/api/clientes/busca", methods=["GET"])
+@login_obrigatorio
+def api_clientes_busca():
+    """Busca rápida de clientes por nome ou CPF/CNPJ."""
+    termo = request.args.get("q", "").strip()
+    comercial = request.args.get("comercial", "").strip()
+    usuario = _usuario_ativo()
+
+    conn = database.get_db()
+    sql = "SELECT id, nome, documento, tipo, comercial FROM cadastros WHERE status = 'Ativo'"
+    params = []
+
+    if termo:
+        sql += " AND (nome LIKE ? COLLATE NOCASE OR documento LIKE ? COLLATE NOCASE)"
+        params.extend([f"%{termo}%", f"%{termo}%"])
+
+    if usuario["perfil"] == "Comercial":
+        sql += " AND comercial = ?"
+        params.append(usuario["nome"])
+    elif comercial:
+        sql += " AND comercial = ?"
+        params.append(comercial)
+
+    sql += " ORDER BY nome ASC LIMIT 30;"
+    rows = conn.execute(sql, params).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route("/api/clientes/<int:id_cliente>/apolices", methods=["GET"])
+@login_obrigatorio
+def api_cliente_apolices(id_cliente):
+    """Retorna apólices ativas de um cliente para seleção de apólice base."""
+    conn = database.get_db()
+    rows = conn.execute("""
+        SELECT id, ramo, seguradora, numero_apolice, vigencia_fim
+        FROM seguros
+        WHERE cadastro_id = ? AND status = 'Ativo'
+        ORDER BY id DESC;
+    """, (id_cliente,)).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    import socket
+    def _obter_ip_local():
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect(("8.8.8.8", 80))
+            return s.getsockname()[0]
+        except Exception:
+            return "127.0.0.1"
+        finally:
+            s.close()
+
+    host = os.environ.get("FLASK_HOST", "0.0.0.0")
+    port = int(os.environ.get("FLASK_PORT", 5000))
+    ip_rede = _obter_ip_local()
+
+    print("\n" + "=" * 58)
+    print("  NCM SISTEMA DE GESTAO - SERVIDOR INICIADO")
+    print(f"  > Acesso neste computador:  http://127.0.0.1:{port}")
+    if ip_rede != "127.0.0.1":
+        print(f"  > Acesso na rede local:     http://{ip_rede}:{port}")
+    print("  > Modo Debug: Desativado (Seguro)")
+    print("=" * 58 + "\n")
+
+    app.run(host=host, port=port, debug=False)

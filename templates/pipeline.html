@@ -24,12 +24,33 @@
     </div>
 
     <div class="flex items-center gap-3">
+      <button type="button" class="btn btn-secondary btn-sm" onclick="toggleTextoEtiquetas()" title="Alternar entre nomes das etiquetas visíveis ou apenas barrinha colorida reduzida (estilo Trello)">
+        🏷 Etiquetas: <span id="labelModoEtiqueta">Expandidas</span>
+      </button>
       <span class="text-faint" style="font-size:12.5px;">
         Responsável: <strong style="color:var(--text);">{{ quadro.comercial }}</strong>
       </span>
       <span class="badge info">{{ quadro.tipo }}</span>
     </div>
   </div>
+
+  <!-- Barra de Etiquetas do Quadro (estilo Trello) -->
+  {% if etiquetas_quadro %}
+    <div class="board-labels-bar" id="boardLabelsBar" style="display:flex; align-items:center; flex-wrap:wrap; gap:8px; padding:8px 16px; margin-bottom:var(--sp-4); background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm);">
+      <span class="bar-title" style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px;">Etiquetas do Quadro:</span>
+      <div id="boardLabelsList" style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+        {% for eq in etiquetas_quadro %}
+          <span class="label-chip" style="background:{{ eq.cor }};" title="Etiqueta: {{ eq.nome }}" onclick="toggleTextoEtiquetas()">{{ eq.nome }}</span>
+        {% endfor %}
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="toggleTextoEtiquetas()" style="font-size:11.5px; margin-left:auto; padding:3px 8px;">
+        Alternar Modo Reduzido
+      </button>
+    </div>
+  {% else %}
+    <div class="board-labels-bar" id="boardLabelsBar" style="display:none;">
+    </div>
+  {% endif %}
 
   <!-- Modal / Painel para Criação de Novo Card -->
   <div id="modalNovoCard" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.5); backdrop-filter:blur(3px); z-index:50; align-items:center; justify-content:center; padding:var(--sp-4);">
@@ -54,8 +75,8 @@
             </div>
           </div>
 
-          <!-- Alternador para Cliente Novo (só no tipo 'Novo') -->
-          <div id="blocoModoCliente" style="display:none; margin-bottom:var(--sp-4); padding:var(--sp-3); background:var(--bg); border-radius:var(--radius); border:1px solid var(--border);">
+          <!-- Alternador para Cliente Novo — disponível em todos os tipos de seguros -->
+          <div id="blocoModoCliente" style="margin-bottom:var(--sp-4); padding:var(--sp-3); background:var(--bg); border-radius:var(--radius); border:1px solid var(--border);">
             <div style="font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:6px;">Origem do Cliente:</div>
             <div class="flex gap-4">
               <label class="flex items-center gap-2" style="font-size:13px; cursor:pointer;">
@@ -67,21 +88,65 @@
             </div>
           </div>
 
+          <!-- Campo de Pesquisa Textual de Cliente Existente -->
           <div class="form-grid" id="campoClienteExistente">
-            <div class="field">
-              <label for="cadastro_id">Cliente</label>
-              <select class="input" id="cadastro_id" name="cadastro_id">
-                {% for c in clientes %}<option value="{{ c.id }}">{{ c.nome }} ({{ c.documento }})</option>{% endfor %}
-              </select>
+            <div class="field full" style="position:relative;">
+              <label for="buscaClienteTexto">Pesquisar Cliente</label>
+              <!-- ID do cliente selecionado que será enviado na submissão -->
+              <input type="hidden" id="cadastro_id" name="cadastro_id" value="">
+
+              <!-- Barra de busca por texto com lupa e botão de limpar -->
+              <div id="containerInputBuscaCliente" style="position:relative;">
+                <input class="input" type="text" id="buscaClienteTexto"
+                       placeholder="Digite o nome ou CPF/CNPJ do cliente..."
+                       autocomplete="off"
+                       style="width:100%; padding-right:36px;"
+                       oninput="aoDigitarBuscaCliente(this.value)"
+                       onfocus="aoFocarBuscaCliente()">
+                <span id="iconeLupaCliente" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--text-faint); pointer-events:none; font-size:14px;">
+                  🔍
+                </span>
+                <button type="button" id="btnLimparTextoCliente" onclick="limparTextoBuscaCliente()"
+                        style="display:none; position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:15px; padding:2px 6px;"
+                        title="Limpar texto">
+                  ✕
+                </button>
+              </div>
+
+              <!-- Lista flutuante de resultados da busca -->
+              <div id="listaResultadosCliente" style="display:none; position:absolute; top:100%; left:0; right:0; max-height:220px; overflow-y:auto; background:var(--bg-card, #ffffff); border:1px solid var(--border); border-radius:8px; box-shadow:0 10px 25px -5px rgba(0,0,0,0.15); z-index:110; margin-top:4px;">
+              </div>
+
+              <!-- Card com o cliente selecionado -->
+              <div id="clienteSelecionadoCard" style="display:none; margin-top:8px; padding:10px 14px; background:var(--bg-hover, #f8fafc); border:1.5px solid var(--primary, #3b82f6); border-radius:8px; align-items:center; justify-content:space-between;">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span style="color:var(--success, #10b981); font-weight:bold;">✓</span>
+                    <strong style="font-size:14px; color:var(--text);" id="nomeClienteSelecionado"></strong>
+                    <span class="badge" id="tipoClienteSelecionado" style="font-size:11px;"></span>
+                  </div>
+                  <div style="font-size:12px; color:var(--text-muted); margin-top:2px;" id="docClienteSelecionado"></div>
+                </div>
+                <button type="button" class="btn btn-ghost btn-sm" onclick="trocarClienteSelecionado()" style="color:var(--primary); font-size:12px;">
+                  Trocar Cliente
+                </button>
+              </div>
             </div>
-            <div class="field" id="campoBase">
+          </div>
+
+          <!-- Apólice base — mostrado só no modo "existente" para tipos que precisam de base -->
+          <div class="form-grid" id="campoBase" style="display:none;">
+            <div class="field full">
               <label for="seguro_base_id">Apólice Anterior (Base)</label>
               <select class="input" id="seguro_base_id" name="seguro_base_id">
                 <option value="">— Nenhuma (negociação em branco) —</option>
                 {% for a in apolices %}
-                  <option value="{{ a.id }}">{{ a.cadastro.nome }} · {{ a.ramo }} ({{ a.seguradora }})</option>
+                  <option value="{{ a.id }}" data-cadastro-id="{{ a.cadastro_id }}">{{ a.cadastro.nome if a.cadastro else '' }} · {{ a.ramo }} ({{ a.seguradora }})</option>
                 {% endfor %}
               </select>
+              <span id="hintApoliceBase" class="hint" style="margin-top:4px;">
+                Selecione um cliente acima para filtrar as apólices ativas.
+              </span>
             </div>
           </div>
 
@@ -101,8 +166,9 @@
                 <option value="PJ">Pessoa Jurídica (PJ)</option>
               </select>
             </div>
-            <p class="hint full" style="margin-top:0;">
+            <p class="hint full" style="margin-top:0;" id="avisoNovoCliente">
               O cadastro será criado imediatamente e vinculado ao comercial <strong>{{ quadro.comercial }}</strong>.
+              A apólice anterior poderá ser informada depois, diretamente no cadastro do cliente.
             </p>
           </div>
 
@@ -129,6 +195,98 @@
     </div>
   </div>
 
+  <!-- Modal de Transferência de Card para Outro Quadro (Assistentes / Administradores) -->
+  {% if quadros_transferencia %}
+  <div id="modalTransferirCard" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.5); backdrop-filter:blur(3px); z-index:60; align-items:center; justify-content:center; padding:var(--sp-4);">
+    <div class="card" style="width:100%; max-width:480px; box-shadow:var(--shadow-lg);">
+      <div class="card-header">
+        <h2>
+          {{ icone('swap', tamanho=18) }}
+          Mover Card entre Quadros
+        </h2>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="fecharModalTransferirCard()" style="padding:4px 8px;">✕</button>
+      </div>
+
+      <form id="formTransferirCard" method="POST" action="">
+        <p style="font-size:13.5px; margin-bottom:var(--sp-3); color:var(--text-muted);">
+          Mover o card de <strong id="transferirNomeCliente" style="color:var(--text);"></strong> para o quadro de outro comercial:
+        </p>
+
+        <div class="field" style="margin-bottom:var(--sp-4);">
+          <label for="novo_quadro_id">Selecione o Quadro de Destino</label>
+          <select class="input" name="novo_quadro_id" id="novo_quadro_id" required>
+            {% for qd in quadros_transferencia %}
+              <option value="{{ qd.id }}">{{ qd.nome }} (Comercial: {{ qd.comercial }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="flex justify-end gap-2">
+          <button type="button" class="btn btn-secondary" onclick="fecharModalTransferirCard()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Confirmar e Mover Card</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- =========================================================
+       MODAL DE CRIAR / EDITAR ETIQUETA
+       ========================================================= -->
+  <div id="modalEtiqueta" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.5); backdrop-filter:blur(3px); z-index:60; align-items:center; justify-content:center; padding:16px;">
+    <div class="card" style="width:100%; max-width:400px; box-shadow:var(--shadow-lg);">
+      <div class="card-header">
+        <h2 id="modalEtiquetaTitulo">Nova Etiqueta</h2>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="fecharModalEtiqueta()" style="padding:4px 8px;">✕</button>
+      </div>
+      <div style="padding:16px; display:flex; flex-direction:column; gap:12px;">
+        <input type="hidden" id="etiquetaEditandoId" value="">
+
+        <!-- Preview da etiqueta -->
+        <div id="etiquetaPreview" class="label-chip" style="background:#3498db; align-self:flex-start; min-width:80px; justify-content:center;">
+          Preview
+        </div>
+
+        <!-- Nome -->
+        <div>
+          <label style="font-size:12px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:4px;">Nome da etiqueta</label>
+          <input type="text" id="etiquetaNomeInput" class="input" placeholder="Ex: Urgente, VIP, Prioridade..."
+                 oninput="atualizarPreview()" maxlength="30">
+        </div>
+
+        <!-- Cores predefinidas -->
+        <div>
+          <label style="font-size:12px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:6px;">Cor</label>
+          <div class="color-options" id="colorOptions"></div>
+          <input type="color" id="etiquetaCorCustom" value="#3498db" oninput="selecionarCor(this.value)"
+                 style="margin-top:8px; width:40px; height:28px; border:none; cursor:pointer; border-radius:4px;">
+          <label style="font-size:11px; color:var(--text-faint); vertical-align:middle; margin-left:4px;">Cor personalizada</label>
+        </div>
+
+        <!-- Ações -->
+        <div class="flex gap-3" style="justify-content:flex-end; border-top:1px solid var(--border); padding-top:12px;">
+          <button class="btn btn-secondary" onclick="fecharModalEtiqueta()">Cancelar</button>
+          <button class="btn btn-primary" onclick="salvarEtiqueta()">Salvar Etiqueta</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       MODAL — PAINEL DE ETIQUETAS DO CARD SELECIONADO
+       ========================================================= -->
+  <div id="modalEtiquetasCard" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.4); backdrop-filter:blur(2px); z-index:55; align-items:center; justify-content:center; padding:16px;">
+    <div class="card" style="width:100%; max-width:320px; box-shadow:var(--shadow-lg);">
+      <div class="card-header">
+        <h2>Etiquetas do Card</h2>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="fecharPainelEtiquetasCard()" style="padding:4px 8px;">✕</button>
+      </div>
+      <div style="padding:12px; display:flex; flex-direction:column; gap:8px;" id="listaEtiquetasCard">
+        <span style="color:var(--text-faint); font-size:13px;">Carregando...</span>
+      </div>
+    </div>
+  </div>
+
   <!-- Quadro Kanban estilo Trello -->
   <div class="kanban-board" id="kanbanBoard">
     {% for nome_coluna, cards in colunas.items() %}
@@ -144,9 +302,24 @@
                  data-href="{{ url_for('card_detalhe', id_card=c.id) }}"
                  data-search="{{ (c.cliente.nome if c.cliente else '') ~ ' ' ~ c.tipo ~ ' ' ~ (c.referencia.ramo if c.referencia else '') ~ ' ' ~ (c.referencia.item if c.referencia else '') }}">
 
+              <!-- Etiquetas do quadro vinculadas a este card (visíveis sem entrar no card) -->
+              <div class="card-labels" id="card-labels-{{ c.id }}">
+                {% for e in c.etiquetas %}
+                  <span class="card-label expandida" style="background:{{ e.cor }};" data-etiqueta-id="{{ e.id }}" data-nome="{{ e.nome }}" title="{{ e.nome }}" onclick="event.stopPropagation(); toggleTextoEtiquetas();">{{ e.nome }}</span>
+                {% endfor %}
+              </div>
+
               <!-- Etiqueta colorida estilo Trello no topo do card -->
-              <div class="trello-labels">
+              <div class="trello-labels" style="display:flex; align-items:center; gap:6px;">
                 <span class="trello-label {{ cor_tipo }}">{{ c.tipo }}</span>
+                {% if quadros_transferencia %}
+                  <button type="button" class="btn btn-ghost btn-sm"
+                          style="font-size:11px; padding:1px 6px; height:20px; line-height:1; border:1px solid var(--border); border-radius:4px;"
+                          title="Mover este card para outro comercial (Assistente/Admin)"
+                          onclick="event.stopPropagation(); abrirModalTransferirCard({{ c.id }}, '{{ c.cliente.nome if c.cliente else 'Card #' ~ c.id }}')">
+                    ⇄ Mover
+                  </button>
+                {% endif %}
                 <span style="font-size:10px; color:var(--text-faint); margin-left:auto; font-weight:500;">#{{ c.id }}</span>
               </div>
 
@@ -200,42 +373,603 @@
 
 {% block scripts_extra %}
 <script>
-  // Modal de Novo Card
-  const modalNovoCard = document.getElementById('modalNovoCard');
-  function abrirModalNovoCard() {
-    modalNovoCard.style.display = 'flex';
-  }
-  function fecharModalNovoCard() {
-    modalNovoCard.style.display = 'none';
+  // =====================================================================
+  // CONSTANTES DO QUADRO
+  // =====================================================================
+  const QUADRO_ID = {{ quadro.id }};
+
+  // Cores predefinidas (estilo Trello)
+  const CORES_PREDEFINIDAS = [
+    '#61bd4f','#f2d600','#ff9f1a','#eb5a46','#c377e0',
+    '#0079bf','#00c2e0','#51e898','#ff78cb','#344563',
+    '#b3bac5','#e4f0f6','#f9f0e1','#fcedea','#eae4f9',
+  ];
+
+  // =====================================================================
+  // ESTADO DO SISTEMA DE ETIQUETAS
+  // =====================================================================
+  let etiquetasQuadro = [];      // [{id, nome, cor}, ...]
+  let etiquetasPorCard = {};     // {card_id: Set(etiqueta_id)}
+  let cardSelecionadoId = null;
+  let corEtiquetaSelecionada = '#3498db';
+  let mostrarTextoEtiquetas = localStorage.getItem('ncm_etiquetas_expandidas') !== 'false';
+
+  function aplicarModoEtiquetas() {
+    const labels = document.querySelectorAll('.card-label');
+    labels.forEach(l => {
+      const nome = l.getAttribute('data-nome') || l.getAttribute('title') || l.textContent.trim();
+      if (!l.getAttribute('data-nome') && nome) {
+        l.setAttribute('data-nome', nome);
+      }
+      if (mostrarTextoEtiquetas) {
+        l.classList.add('expandida');
+        l.textContent = l.getAttribute('data-nome') || '';
+      } else {
+        l.classList.remove('expandida');
+        l.textContent = '';
+      }
+    });
+    const lbl = document.getElementById('labelModoEtiqueta');
+    if (lbl) lbl.textContent = mostrarTextoEtiquetas ? 'Expandidas' : 'Reduzidas';
   }
 
-  // Fecha no clique fora
-  modalNovoCard.addEventListener('click', (e) => {
-    if (e.target === modalNovoCard) fecharModalNovoCard();
+  function toggleTextoEtiquetas() {
+    mostrarTextoEtiquetas = !mostrarTextoEtiquetas;
+    localStorage.setItem('ncm_etiquetas_expandidas', mostrarTextoEtiquetas);
+    aplicarModoEtiquetas();
+  }
+
+  // =====================================================================
+  // MODAL DE TRANSFERÊNCIA DE CARD ENTRE QUADROS (Assistente / Admin)
+  // =====================================================================
+  function abrirModalTransferirCard(cardId, nomeCliente) {
+    const form = document.getElementById('formTransferirCard');
+    if (!form) return;
+    form.action = `/cards/${cardId}/transferir_quadro`;
+    const labelCliente = document.getElementById('transferirNomeCliente');
+    if (labelCliente) labelCliente.textContent = nomeCliente || `Card #${cardId}`;
+    const modal = document.getElementById('modalTransferirCard');
+    if (modal) modal.style.display = 'flex';
+  }
+
+  function fecharModalTransferirCard() {
+    const modal = document.getElementById('modalTransferirCard');
+    if (modal) modal.style.display = 'none';
+  }
+
+  // =====================================================================
+  // INICIALIZAÇÃO: carrega etiquetas e renderiza nos cards
+  // =====================================================================
+  async function inicializarEtiquetas() {
+    aplicarModoEtiquetas();
+    try {
+      const resp = await fetch(`/api/quadros/${QUADRO_ID}/etiquetas`);
+      etiquetasQuadro = await resp.json();
+      renderizarBarraEtiquetas();
+    } catch (err) {
+      console.error('Erro ao carregar etiquetas do quadro:', err);
+    }
+  }
+
+  async function carregarEtiquetasTodosCards() {
+    const cards = document.querySelectorAll('.kanban-card[data-id]');
+    for (const card of cards) {
+      const id = Number(card.dataset.id);
+      await carregarEtiquetasCard(id);
+    }
+  }
+
+  async function carregarEtiquetasCard(cardId) {
+    try {
+      const resp = await fetch(`/api/cards/${cardId}/etiquetas`);
+      const lista = await resp.json();
+      etiquetasPorCard[cardId] = new Set(lista.map(e => e.id));
+      renderizarEtiquetasNoCard(cardId);
+    } catch (err) {
+      console.error('Erro ao carregar etiquetas do card', cardId, err);
+    }
+  }
+
+  // =====================================================================
+  // RENDERIZAÇÃO DA BARRA DO QUADRO
+  // =====================================================================
+  function renderizarBarraEtiquetas() {
+    const lista = document.getElementById('boardLabelsList');
+    lista.innerHTML = '';
+    etiquetasQuadro.forEach(e => {
+      const chip = document.createElement('span');
+      chip.className = 'label-chip';
+      chip.style.background = e.cor;
+      chip.dataset.id = e.id;
+      chip.title = `Clique para gerir etiqueta "${e.nome}"`;
+      chip.textContent = e.nome;
+      chip.addEventListener('click', () => abrirModalEtiqueta(e));
+      lista.appendChild(chip);
+    });
+  }
+
+  // =====================================================================
+  // RENDERIZAÇÃO DAS ETIQUETAS NOS CARDS
+  // =====================================================================
+  function renderizarEtiquetasNoCard(cardId) {
+    const container = document.getElementById(`card-labels-${cardId}`);
+    if (!container) return;
+    container.innerHTML = '';
+
+    const ids = etiquetasPorCard[cardId] || new Set();
+    etiquetasQuadro.forEach(e => {
+      if (!ids.has(e.id)) return;
+      const badge = document.createElement('span');
+      badge.className = mostrarTextoEtiquetas ? 'card-label expandida' : 'card-label';
+      badge.style.background = e.cor;
+      badge.dataset.etiquetaId = e.id;
+      badge.dataset.nome = e.nome;
+      if (mostrarTextoEtiquetas) badge.textContent = e.nome;
+      badge.title = e.nome;
+      badge.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        toggleTextoEtiquetas();
+      });
+      container.appendChild(badge);
+    });
+  }
+
+  function renderizarTodasEtiquetasCards() {
+    aplicarModoEtiquetas();
+  }
+
+  // =====================================================================
+  // MODAL DE CRIAR / EDITAR ETIQUETA
+  // =====================================================================
+  function abrirModalEtiqueta(etiqueta) {
+    document.getElementById('modalEtiqueta').style.display = 'flex';
+    document.getElementById('etiquetaEditandoId').value = etiqueta ? etiqueta.id : '';
+    document.getElementById('etiquetaNomeInput').value = etiqueta ? etiqueta.nome : '';
+    document.getElementById('modalEtiquetaTitulo').textContent = etiqueta ? 'Editar Etiqueta' : 'Nova Etiqueta';
+    corEtiquetaSelecionada = etiqueta ? etiqueta.cor : '#3498db';
+
+    // Renderiza swatches de cores
+    const colorOptions = document.getElementById('colorOptions');
+    colorOptions.innerHTML = '';
+    CORES_PREDEFINIDAS.forEach(cor => {
+      const sw = document.createElement('div');
+      sw.className = 'color-swatch' + (cor === corEtiquetaSelecionada ? ' ativo' : '');
+      sw.style.background = cor;
+      sw.title = cor;
+      sw.addEventListener('click', () => selecionarCor(cor));
+      colorOptions.appendChild(sw);
+    });
+
+    document.getElementById('etiquetaCorCustom').value = corEtiquetaSelecionada;
+    atualizarPreview();
+  }
+
+  function fecharModalEtiqueta() {
+    document.getElementById('modalEtiqueta').style.display = 'none';
+  }
+
+  function selecionarCor(cor) {
+    corEtiquetaSelecionada = cor;
+    document.querySelectorAll('#colorOptions .color-swatch').forEach(sw => {
+      sw.classList.toggle('ativo', sw.style.background === cor || sw.title === cor);
+    });
+    document.getElementById('etiquetaCorCustom').value = cor;
+    atualizarPreview();
+  }
+
+  function atualizarPreview() {
+    const nome = document.getElementById('etiquetaNomeInput').value || 'Preview';
+    const preview = document.getElementById('etiquetaPreview');
+    preview.textContent = nome;
+    preview.style.background = corEtiquetaSelecionada;
+  }
+
+  async function salvarEtiqueta() {
+    const nome = document.getElementById('etiquetaNomeInput').value.trim();
+    const id = document.getElementById('etiquetaEditandoId').value;
+    if (!nome) {
+      alert('Informe o nome da etiqueta.');
+      return;
+    }
+
+    try {
+      let resp;
+      if (id) {
+        // Editar existente
+        resp = await fetch(`/api/etiquetas/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome, cor: corEtiquetaSelecionada })
+        });
+      } else {
+        // Criar nova
+        resp = await fetch(`/api/quadros/${QUADRO_ID}/etiquetas`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome, cor: corEtiquetaSelecionada })
+        });
+        if (resp.ok) {
+          const nova = await resp.json();
+          etiquetasQuadro.push(nova);
+          renderizarBarraEtiquetas();
+          fecharModalEtiqueta();
+          return;
+        }
+      }
+
+      if (resp.ok) {
+        // Atualiza localmente
+        const idx = etiquetasQuadro.findIndex(e => String(e.id) === String(id));
+        if (idx >= 0) {
+          etiquetasQuadro[idx].nome = nome;
+          etiquetasQuadro[idx].cor = corEtiquetaSelecionada;
+        }
+        renderizarBarraEtiquetas();
+        renderizarTodasEtiquetasCards();
+        fecharModalEtiqueta();
+      } else {
+        const err = await resp.json();
+        alert('Erro: ' + (err.erro || 'Falha ao salvar'));
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erro de comunicação com o servidor.');
+    }
+  }
+
+  // =====================================================================
+  // PAINEL DE ETIQUETAS DO CARD
+  // =====================================================================
+  function abrirPainelEtiquetasCard(cardId) {
+    cardSelecionadoId = cardId;
+    renderizarPainelEtiquetasCard(cardId);
+    document.getElementById('modalEtiquetasCard').style.display = 'flex';
+  }
+
+  function fecharPainelEtiquetasCard() {
+    document.getElementById('modalEtiquetasCard').style.display = 'none';
+    cardSelecionadoId = null;
+  }
+
+  function renderizarPainelEtiquetasCard(cardId) {
+    const lista = document.getElementById('listaEtiquetasCard');
+    lista.innerHTML = '';
+    const ids = etiquetasPorCard[cardId] || new Set();
+
+    if (etiquetasQuadro.length === 0) {
+      lista.innerHTML = '<span style="color:var(--text-faint);font-size:13px;">Nenhuma etiqueta criada neste quadro.</span>';
+      return;
+    }
+
+    etiquetasQuadro.forEach(e => {
+      const ativo = ids.has(e.id);
+      const linha = document.createElement('div');
+      linha.style = 'display:flex;align-items:center;gap:10px;cursor:pointer;padding:6px 4px;border-radius:6px;';
+      linha.onmouseenter = () => linha.style.background = 'var(--bg-hover, #f0f2f5)';
+      linha.onmouseleave = () => linha.style.background = '';
+
+      const badge = document.createElement('span');
+      badge.className = 'label-chip';
+      badge.style = `background:${e.cor}; flex:1; justify-content:flex-start;`;
+      badge.textContent = e.nome;
+
+      const check = document.createElement('span');
+      check.textContent = ativo ? '✓' : '';
+      check.style = `font-size:16px; color:var(--success, #27ae60); width:20px; text-align:center; font-weight:700;`;
+      check.id = `check-etiqueta-${e.id}`;
+
+      linha.appendChild(badge);
+      linha.appendChild(check);
+      linha.addEventListener('click', () => toggleEtiquetaCard(cardId, e.id, check));
+      lista.appendChild(linha);
+    });
+
+    // Botão para criar nova etiqueta a partir daqui
+    const btnNova = document.createElement('button');
+    btnNova.className = 'btn btn-secondary';
+    btnNova.style = 'margin-top:8px; font-size:12px;';
+    btnNova.textContent = '+ Criar nova etiqueta';
+    btnNova.onclick = () => { fecharPainelEtiquetasCard(); abrirModalEtiqueta(null); };
+    lista.appendChild(btnNova);
+  }
+
+  async function toggleEtiquetaCard(cardId, etiquetaId, checkEl) {
+    try {
+      const resp = await fetch(`/api/cards/${cardId}/etiquetas/${etiquetaId}/toggle`, {
+        method: 'POST'
+      });
+      const result = await resp.json();
+
+      const ids = etiquetasPorCard[cardId] || new Set();
+      if (result.adicionou) {
+        ids.add(etiquetaId);
+        if (checkEl) checkEl.textContent = '✓';
+      } else {
+        ids.delete(etiquetaId);
+        if (checkEl) checkEl.textContent = '';
+      }
+      etiquetasPorCard[cardId] = ids;
+      renderizarEtiquetasNoCard(cardId);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao atualizar etiqueta.');
+    }
+  }
+
+  // =====================================================================
+  // CLIQUE NO CARD: abre painel de etiquetas ao clicar nos badges
+  // O clique normal no card ainda navega para o detalhe
+  // =====================================================================
+  document.querySelectorAll('.kanban-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      // se clicou em uma etiqueta já renderizada: painel de etiquetas
+      if (e.target.closest('.card-labels')) {
+        e.stopPropagation();
+        e.preventDefault();
+        return;
+      }
+    });
   });
 
-  // Alternador tipo de card
+  // =====================================================================
+  // MODAL DE NOVO CARD
+  // =====================================================================
+  const modalNovoCard = document.getElementById('modalNovoCard');
+  function fecharModalNovoCard() {
+    if (modalNovoCard) modalNovoCard.style.display = 'none';
+  }
+  if (modalNovoCard) {
+    modalNovoCard.addEventListener('click', (e) => {
+      if (e.target === modalNovoCard) fecharModalNovoCard();
+    });
+  }
+
+  // Fecha modal de etiqueta ao clicar fora
+  document.getElementById('modalEtiqueta').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('modalEtiqueta')) fecharModalEtiqueta();
+  });
+  document.getElementById('modalEtiquetasCard').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('modalEtiquetasCard')) fecharPainelEtiquetasCard();
+  });
+
+  // =====================================================================
+  // ALTERNADOR TIPO DE CARD
+  // =====================================================================
   function alternarTipo(tipo) {
-    const ehNovo = tipo === 'Novo';
-    const bloco = document.getElementById('blocoModoCliente');
-    const campoBase = document.getElementById('campoBase');
-    if (bloco) bloco.style.display = ehNovo ? 'block' : 'none';
-    if (campoBase) campoBase.style.display = ehNovo ? 'none' : 'block';
-    if (!ehNovo) {
-      alternarModoCliente('existente');
-      const rad = document.querySelector('input[name="modo_cliente"][value="existente"]');
-      if (rad) rad.checked = true;
-    }
+    const ehNovo     = tipo === 'Novo';
+    const temBase    = ['Renovação', 'Endosso', 'Cancelamento'].includes(tipo);
+    const campoBase  = document.getElementById('campoBase');
+
+    // Apólice base só faz sentido para tipos que derivam de uma apólice existente,
+    // e só no modo "cliente existente"
+    const modoAtual = document.querySelector('input[name="modo_cliente"]:checked');
+    const ehExistente = !modoAtual || modoAtual.value === 'existente';
+    if (campoBase) campoBase.style.display = (temBase && ehExistente) ? 'grid' : 'none';
+
+    // Resetar sempre para "existente" ao trocar o tipo
+    alternarModoCliente('existente');
+    const rad = document.querySelector('input[name="modo_cliente"][value="existente"]');
+    if (rad) rad.checked = true;
   }
 
   function alternarModoCliente(modo) {
     const cx = document.getElementById('campoClienteExistente');
     const cn = document.getElementById('campoClienteNovo');
+    const campoBase = document.getElementById('campoBase');
+    const tipoSel = document.getElementById('tipo');
+    const tipo = tipoSel ? tipoSel.value : 'Novo';
+    const temBase = ['Renovação', 'Endosso', 'Cancelamento'].includes(tipo);
+
     if (cx) cx.style.display = modo === 'existente' ? 'grid' : 'none';
-    if (cn) cn.style.display = modo === 'novo' ? 'grid' : 'none';
+    if (cn) cn.style.display = modo === 'novo'      ? 'grid' : 'none';
+    // Apólice base: só mostrar para tipos que têm base E no modo "existente"
+    if (campoBase) campoBase.style.display = (temBase && modo === 'existente') ? 'grid' : 'none';
   }
 
-  // Filtro instantâneo no Kanban sem recarregar a tela
+  // Inicializa estado correto ao abrir o modal
+  function abrirModalNovoCard() {
+    const modal = document.getElementById('modalNovoCard');
+    if (modal) { modal.style.display = 'flex'; }
+    const tipoSel = document.getElementById('tipo');
+    if (tipoSel) alternarTipo(tipoSel.value);
+  }
+
+  // =====================================================================
+  // PESQUISA TEXTUAL DE CLIENTES (Substitui o drop-down tradicional)
+  // =====================================================================
+  let debounceTimeoutBusca = null;
+
+  async function buscarClientesApi(termo) {
+    try {
+      const resp = await fetch(`/api/clientes/busca?q=${encodeURIComponent(termo)}&comercial={{ quadro.comercial|urlencode }}`);
+      if (!resp.ok) return [];
+      return await resp.json();
+    } catch (e) {
+      console.error('Erro na busca de clientes:', e);
+      return [];
+    }
+  }
+
+  function aoDigitarBuscaCliente(valor) {
+    const btnLimpar = document.getElementById('btnLimparTextoCliente');
+    const iconeLupa = document.getElementById('iconeLupaCliente');
+    if (btnLimpar && iconeLupa) {
+      btnLimpar.style.display = valor ? 'block' : 'none';
+      iconeLupa.style.display = valor ? 'none' : 'block';
+    }
+
+    clearTimeout(debounceTimeoutBusca);
+    debounceTimeoutBusca = setTimeout(async () => {
+      const lista = document.getElementById('listaResultadosCliente');
+      if (!valor || valor.trim().length === 0) {
+        lista.style.display = 'none';
+        lista.innerHTML = '';
+        return;
+      }
+
+      lista.innerHTML = '<div style="padding:12px; font-size:13px; color:var(--text-muted); text-align:center;">Buscando clientes...</div>';
+      lista.style.display = 'block';
+
+      const clientes = await buscarClientesApi(valor.trim());
+      renderizarResultadosClientes(clientes);
+    }, 200);
+  }
+
+  async function aoFocarBuscaCliente() {
+    const input = document.getElementById('buscaClienteTexto');
+    const lista = document.getElementById('listaResultadosCliente');
+    if (!input || !lista) return;
+
+    if (input.value.trim().length > 0) {
+      const clientes = await buscarClientesApi(input.value.trim());
+      renderizarResultadosClientes(clientes);
+    } else {
+      const clientes = await buscarClientesApi('');
+      renderizarResultadosClientes(clientes);
+    }
+  }
+
+  function renderizarResultadosClientes(clientes) {
+    const lista = document.getElementById('listaResultadosCliente');
+    if (!lista) return;
+
+    if (!clientes || clientes.length === 0) {
+      lista.innerHTML = '<div style="padding:14px; font-size:13px; color:var(--text-muted); text-align:center;">Nenhum cliente encontrado.</div>';
+      lista.style.display = 'block';
+      return;
+    }
+
+    let html = '';
+    clientes.forEach(c => {
+      const nomeEsc = (c.nome || '').replace(/'/g, "\\'");
+      const docEsc = (c.documento || '').replace(/'/g, "\\'");
+      const tipoEsc = (c.tipo || 'PF').replace(/'/g, "\\'");
+      html += `
+        <div class="item-resultado-cliente"
+             onclick="selecionarCliente(${c.id}, '${nomeEsc}', '${docEsc}', '${tipoEsc}')"
+             style="padding:10px 14px; border-bottom:1px solid var(--border-subtle, #e2e8f0); cursor:pointer; display:flex; align-items:center; justify-content:space-between; transition:background .15s;">
+          <div>
+            <div style="font-weight:600; font-size:13.5px; color:var(--text);">${c.nome}</div>
+            <div style="font-size:12px; color:var(--text-muted);">${c.documento || 'Sem CPF/CNPJ'} · ${c.comercial || ''}</div>
+          </div>
+          <span class="badge" style="font-size:11px;">${c.tipo}</span>
+        </div>
+      `;
+    });
+    lista.innerHTML = html;
+    lista.style.display = 'block';
+
+    lista.querySelectorAll('.item-resultado-cliente').forEach(item => {
+      item.addEventListener('mouseenter', () => item.style.background = 'var(--bg-hover, #f1f5f9)');
+      item.addEventListener('mouseleave', () => item.style.background = '');
+    });
+  }
+
+  async function selecionarCliente(id, nome, documento, tipo) {
+    document.getElementById('cadastro_id').value = id;
+    document.getElementById('nomeClienteSelecionado').textContent = nome;
+    document.getElementById('docClienteSelecionado').textContent = documento ? `CPF/CNPJ: ${documento}` : 'Sem documento';
+    document.getElementById('tipoClienteSelecionado').textContent = tipo;
+
+    document.getElementById('containerInputBuscaCliente').style.display = 'none';
+    document.getElementById('listaResultadosCliente').style.display = 'none';
+    document.getElementById('clienteSelecionadoCard').style.display = 'flex';
+
+    await carregarApolicesCliente(id);
+  }
+
+  function trocarClienteSelecionado() {
+    document.getElementById('cadastro_id').value = '';
+    document.getElementById('clienteSelecionadoCard').style.display = 'none';
+    document.getElementById('containerInputBuscaCliente').style.display = 'block';
+    const input = document.getElementById('buscaClienteTexto');
+    if (input) {
+      input.value = '';
+      input.focus();
+    }
+    limparTextoBuscaCliente();
+
+    const selectBase = document.getElementById('seguro_base_id');
+    if (selectBase) {
+      selectBase.innerHTML = '<option value="">— Nenhuma (negociação em branco) —</option>';
+    }
+    const hint = document.getElementById('hintApoliceBase');
+    if (hint) hint.textContent = 'Selecione um cliente acima para filtrar as apólices ativas.';
+  }
+
+  function limparTextoBuscaCliente() {
+    const input = document.getElementById('buscaClienteTexto');
+    if (input) input.value = '';
+    const btn = document.getElementById('btnLimparTextoCliente');
+    const icone = document.getElementById('iconeLupaCliente');
+    if (btn) btn.style.display = 'none';
+    if (icone) icone.style.display = 'block';
+    const lista = document.getElementById('listaResultadosCliente');
+    if (lista) { lista.style.display = 'none'; lista.innerHTML = ''; }
+  }
+
+  async function carregarApolicesCliente(clienteId) {
+    const selectBase = document.getElementById('seguro_base_id');
+    const hint = document.getElementById('hintApoliceBase');
+    if (!selectBase) return;
+
+    selectBase.innerHTML = '<option value="">Carregando apólices...</option>';
+
+    try {
+      const resp = await fetch(`/api/clientes/${clienteId}/apolices`);
+      const apolices = await resp.json();
+
+      selectBase.innerHTML = '<option value="">— Nenhuma (negociação em branco) —</option>';
+      if (apolices && apolices.length > 0) {
+        apolices.forEach(a => {
+          const numApolice = a.numero_apolice ? ` (Apólice ${a.numero_apolice})` : '';
+          const opt = document.createElement('option');
+          opt.value = a.id;
+          opt.textContent = `${a.ramo} · ${a.seguradora}${numApolice}`;
+          selectBase.appendChild(opt);
+        });
+        if (hint) hint.textContent = `${apolices.length} apólice(s) ativa(s) encontrada(s) para este cliente.`;
+      } else {
+        if (hint) hint.textContent = 'Este cliente não possui apólices ativas cadastradas.';
+      }
+    } catch (e) {
+      selectBase.innerHTML = '<option value="">— Nenhuma (negociação em branco) —</option>';
+      if (hint) hint.textContent = 'Não foi possível carregar as apólices.';
+    }
+  }
+
+  // Fecha dropdown de clientes se clicar fora
+  document.addEventListener('click', function(e) {
+    const container = document.getElementById('campoClienteExistente');
+    const lista = document.getElementById('listaResultadosCliente');
+    if (lista && container && !container.contains(e.target)) {
+      lista.style.display = 'none';
+    }
+  });
+
+  // Validação ao enviar o formulário
+  document.addEventListener('DOMContentLoaded', function() {
+    const formNovoCard = document.querySelector('#modalNovoCard form');
+    if (formNovoCard) {
+      formNovoCard.addEventListener('submit', function (e) {
+        const modo = document.querySelector('input[name="modo_cliente"]:checked');
+        if (modo && modo.value === 'existente') {
+          const cadId = document.getElementById('cadastro_id').value;
+          if (!cadId) {
+            e.preventDefault();
+            alert('Por favor, pesquise e selecione um cliente da carteira.');
+            const input = document.getElementById('buscaClienteTexto');
+            if (input) input.focus();
+          }
+        }
+      });
+    }
+  });
+
+
+  // =====================================================================
+  // FILTRO INSTANTÂNEO NO KANBAN
+  // =====================================================================
   function filtrarKanban(termo) {
     termo = termo.toLowerCase().trim();
     const cards = document.querySelectorAll('.kanban-card');
@@ -245,7 +979,9 @@
     });
   }
 
-  // Drag and Drop sem conflito com o clique de navegação
+  // =====================================================================
+  // DRAG AND DROP
+  // =====================================================================
   const board = document.getElementById('kanbanBoard');
   let hasDragged = false;
 
@@ -266,6 +1002,7 @@
         e.preventDefault();
         return;
       }
+      if (e.target.closest('.card-labels') || e.target.closest('button')) return; // não navega se clicou em etiqueta ou botão
       if (card.dataset.href) {
         window.location.href = card.dataset.href;
       }
@@ -320,5 +1057,10 @@
       }
     });
   });
+
+  // =====================================================================
+  // INICIAR TUDO
+  // =====================================================================
+  inicializarEtiquetas();
 </script>
 {% endblock %}

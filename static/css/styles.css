@@ -26,6 +26,11 @@
   --text-faint:     #8993A4;
   --text-inverse:   #FFFFFF;
 
+  --primary:        #2C3E50;
+  --bg-secondary:   #F4F5F7;
+  --bg-card:        #FFFFFF;
+  --bg-hover:       #F0F2F5;
+
   /* Cor de Destaque Sóbria (Slate Navy) */
   --accent:         #2C3E50;
   --accent-hover:   #1A252F;
@@ -107,10 +112,16 @@
   --border-strong:  #363C4A;
   --border-focus:   #5D82AF;
 
-  --text:           #E6E9EF;
-  --text-muted:     #9CA3AF;
-  --text-faint:     #6B7280;
+  /* Textos nítidos e com alto contraste no Dark Mode */
+  --text:           #F8FAFC;  /* Branco nítido (Slate 50) */
+  --text-muted:     #CBD5E1;  /* Cinza claro legível (Slate 300) - antes #9CA3AF */
+  --text-faint:     #94A3B8;  /* Cinza médio com contraste (Slate 400) - antes #6B7280 */
   --text-inverse:   #0F1115;
+
+  --primary:        #5D82AF;
+  --bg-secondary:   #1A1D24;
+  --bg-card:        #1E222A;
+  --bg-hover:       #262B35;
 
   --accent:         #3B536E;
   --accent-hover:   #486586;
@@ -158,6 +169,76 @@
   --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 12px 24px -4px rgba(0, 0, 0, 0.6);
 }
+
+/* --- Refinamentos de Contraste e Legibilidade no Dark Mode --- */
+[data-theme="dark"] .field label {
+  color: #E2E8F0;
+  font-weight: 500;
+}
+
+[data-theme="dark"] .field .hint,
+[data-theme="dark"] .card-header .muted,
+[data-theme="dark"] .stat-card .sub,
+[data-theme="dark"] .topbar .crumb,
+[data-theme="dark"] .nav-label {
+  color: #94A3B8;
+}
+
+[data-theme="dark"] .input,
+[data-theme="dark"] select.input,
+[data-theme="dark"] textarea.input {
+  background-color: #1A1D24;
+  color: #F8FAFC;
+  border-color: #374151;
+}
+
+[data-theme="dark"] .input::placeholder {
+  color: #64748B;
+}
+
+[data-theme="dark"] select.input option {
+  background-color: #1A1D24;
+  color: #F8FAFC;
+}
+
+[data-theme="dark"] thead th {
+  color: #CBD5E1;
+  background-color: #161920;
+}
+
+[data-theme="dark"] .kanban-card .card-subtitle {
+  color: #CBD5E1;
+}
+
+[data-theme="dark"] .trello-badges {
+  color: #94A3B8;
+}
+
+[data-theme="dark"] .btn-secondary {
+  background: #1E222A;
+  color: #F8FAFC;
+  border-color: #374151;
+}
+
+[data-theme="dark"] .btn-secondary:hover {
+  background: #282E37;
+}
+
+[data-theme="dark"] .btn-ghost {
+  color: #CBD5E1;
+}
+
+[data-theme="dark"] .btn-ghost:hover {
+  background: #21252E;
+  color: #FFFFFF;
+}
+
+[data-theme="dark"] code {
+  background: #161920;
+  color: #93C5FD;
+  border: 1px solid #282C37;
+}
+
 
 /* -------------------------------------------------------------------------
    2. RESET & BASE

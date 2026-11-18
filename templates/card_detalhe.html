@@ -222,7 +222,17 @@
                     <strong style="font-size:13px; color:var(--text);">{{ c.autor }}</strong>
                     <span class="text-faint" style="font-size:11px;">{{ c.data|data_br }}</span>
                   </div>
-                  <div style="font-size:13.5px; color:var(--text-muted); margin-top:3px;">{{ c.texto }}</div>
+                  <div style="font-size:13.5px; color:var(--text); margin-top:3px; line-height:1.45;">
+                    {% if c.texto.startswith('[IMAGEM:') %}
+                      {% set nome_img = c.texto[8:-1] %}
+                      <img src="{{ url_for('anexo', nome_arquivo=nome_img) }}"
+                           alt="Imagem colada"
+                           style="max-width:100%; max-height:320px; border-radius:6px; display:block; cursor:pointer;"
+                           onclick="window.open(this.src,'_blank')">
+                    {% else %}
+                      {{ c.texto }}
+                    {% endif %}
+                  </div>
                 </div>
               </div>
             {% endfor %}
@@ -231,16 +241,146 @@
           <p class="text-faint" style="font-size:13px; margin-bottom:var(--sp-4);">Nenhum comentário registrado ainda.</p>
         {% endif %}
 
-        <form method="POST" action="{{ url_for('card_comentar', id_card=card.id) }}" class="flex gap-2">
-          <input class="input" type="text" name="texto" placeholder="Escreva uma observação para a equipe..." required>
-          <button class="btn btn-primary" type="submit">Comentar</button>
+        <!-- Área de comentário com suporte a Ctrl+V de imagem -->
+        <form method="POST" action="{{ url_for('card_comentar', id_card=card.id) }}" id="formComentario" class="flex gap-2" style="align-items:flex-start;">
+          <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
+            <input class="input" id="campoComentario" name="texto" type="text"
+              placeholder="Escreva uma observação para a equipe… ou cole uma imagem (Ctrl+V)"
+              style="width:100%;">
+            <!-- Preview da imagem antes de enviar -->
+            <div id="previewPasteImg" style="display:none;">
+              <img id="previewPasteImgEl" src="" alt="Preview" style="max-height:160px; border-radius:6px; border:1px solid var(--border); display:block;">
+              <button type="button" onclick="cancelarImagemColada()" style="margin-top:4px; color:var(--danger); background:none; border:none; cursor:pointer; font-size:12px;">✕ Cancelar imagem</button>
+            </div>
+          </div>
+          <button class="btn btn-primary" type="submit" id="btnComentar" style="flex-shrink:0;">Comentar</button>
         </form>
       </div>
 
     </div>
 
-    <!-- Coluna Direita: Anexos, Documento de Negociação e Conclusão -->
+    <!-- Coluna Direita: Etiquetas, Anexos, Documento de Negociação e Conclusão -->
     <div style="display:flex; flex-direction:column; gap:var(--sp-5);">
+
+      <!-- =====================================================
+           ETIQUETAS DO CARD (estilo Trello)
+           ===================================================== -->
+      <div class="card">
+        <div class="card-header">
+          <h2>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+              <line x1="7" y1="7" x2="7.01" y2="7"/>
+            </svg>
+            Etiquetas
+          </h2>
+          <button class="btn btn-secondary btn-sm" type="button" onclick="abrirModalCriarEtiqueta()">+ Nova</button>
+        </div>
+
+        <!-- Etiquetas atualmente no card -->
+        <div id="etiquetasNoCard" style="display:flex; flex-wrap:wrap; gap:6px; padding:0 0 12px 0; min-height:28px;">
+          {% for e in etiquetas_card %}
+            <span class="label-chip" style="background:{{ e.cor }};" data-id="{{ e.id }}" title="{{ e.nome }}">
+              {{ e.nome }}
+            </span>
+          {% else %}
+            <span id="semEtiquetas" style="font-size:12px; color:var(--text-faint);">Nenhuma etiqueta adicionada.</span>
+          {% endfor %}
+        </div>
+
+        <!-- Lista de etiquetas do quadro para adicionar/remover -->
+        <div style="border-top:1px solid var(--border-subtle); padding-top:10px;">
+          <div style="font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px;">
+            Etiquetas do Quadro
+          </div>
+          <div id="listaEtiquetasQuadro" style="display:flex; flex-direction:column; gap:4px;">
+            {% for e in etiquetas_quadro %}
+              {% set ativa = e.id in etiquetas_card | map(attribute='id') | list %}
+              <div class="etiqueta-item" data-id="{{ e.id }}" data-ativa="{{ 'true' if ativa else 'false' }}"
+                   onclick="toggleEtiqueta({{ e.id }}, this)"
+                   style="display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:8px; cursor:pointer; border:1px solid var(--border-subtle); transition:background .15s;">
+                <span style="display:inline-block; width:36px; height:14px; border-radius:7px; background:{{ e.cor }}; flex-shrink:0;"></span>
+                <span style="flex:1; font-size:13px; font-weight:500; color:var(--text);">{{ e.nome }}</span>
+                <span class="etiqueta-check" style="font-size:16px; color:var(--success,#27ae60); font-weight:700; width:20px; text-align:center;">
+                  {{ '✓' if ativa else '' }}
+                </span>
+              </div>
+            {% else %}
+              <p style="font-size:12px; color:var(--text-faint);">
+                Nenhuma etiqueta criada para este quadro ainda.
+                <br>Clique em "+ Nova" para criar.
+              </p>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal criar etiqueta -->
+      <div id="modalCriarEtiqueta" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.5); backdrop-filter:blur(3px); z-index:60; align-items:center; justify-content:center; padding:16px;">
+        <div class="card" style="width:100%; max-width:380px; box-shadow:var(--shadow-lg);">
+          <div class="card-header">
+            <h2>Nova Etiqueta</h2>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="fecharModalCriarEtiqueta()" style="padding:4px 8px;">✕</button>
+          </div>
+          <div style="padding:16px; display:flex; flex-direction:column; gap:12px;">
+
+            <!-- Preview -->
+            <div id="previewEtiqueta" class="label-chip" style="background:#3498db; align-self:flex-start; min-width:90px; justify-content:center; font-size:13px;">
+              Preview
+            </div>
+
+            <!-- Nome -->
+            <div>
+              <label style="font-size:12px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:4px;">Nome</label>
+              <input type="text" id="novaEtiquetaNome" class="input" placeholder="Ex: Urgente, VIP, Prioridade..." maxlength="30" oninput="atualizarPreviewEtiqueta()">
+            </div>
+
+            <!-- Cores predefinidas -->
+            <div>
+              <label style="font-size:12px; font-weight:600; color:var(--text-muted); display:block; margin-bottom:6px;">Cor</label>
+              <div id="swatchesEtiqueta" style="display:flex; flex-wrap:wrap; gap:7px;"></div>
+              <div style="margin-top:8px; display:flex; align-items:center; gap:8px;">
+                <input type="color" id="corCustomEtiqueta" value="#3498db" oninput="selecionarCorEtiqueta(this.value)"
+                       style="width:36px; height:28px; border:none; cursor:pointer; border-radius:4px; padding:0;">
+                <span style="font-size:11px; color:var(--text-faint);">Cor personalizada</span>
+              </div>
+            </div>
+
+            <div class="flex gap-3" style="justify-content:flex-end; border-top:1px solid var(--border); padding-top:12px;">
+              <button class="btn btn-secondary" type="button" onclick="fecharModalCriarEtiqueta()">Cancelar</button>
+              <button class="btn btn-primary" type="button" onclick="criarEtiqueta()">Criar Etiqueta</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mover Card entre Quadros de Comerciais Diferentes (Assistentes e Administrador) -->
+      {% if quadros_transferencia %}
+        <div class="card" style="border-left:3px solid var(--accent);">
+          <div class="card-header">
+            <h2>
+              {{ icone('swap', tamanho=18) }}
+              Mover entre Quadros
+            </h2>
+          </div>
+          <p style="font-size:12.5px; color:var(--text-muted); margin-bottom:var(--sp-3);">
+            Como <strong>{{ usuario_logado.perfil }}</strong>, você pode transferir este card para a fila de outro comercial.
+          </p>
+          <form method="POST" action="{{ url_for('card_transferir_quadro', id_card=card.id) }}">
+            <div class="field" style="margin-bottom:var(--sp-3);">
+              <label for="transferir_quadro_id">Quadro de Destino</label>
+              <select class="input" name="novo_quadro_id" id="transferir_quadro_id" required>
+                {% for q in quadros_transferencia %}
+                  <option value="{{ q.id }}">{{ q.nome }} ({{ q.comercial }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <button class="btn btn-primary btn-sm" type="submit" style="width:100%;">
+              Transferir para este Quadro
+            </button>
+          </form>
+        </div>
+      {% endif %}
 
       <!-- Anexos do Card (RF18) -->
       <div class="card">
@@ -252,17 +392,49 @@
         </div>
 
         {% if card.anexos %}
-          <ul style="display:flex; flex-direction:column; gap:8px; margin-bottom:var(--sp-4);">
+          <ul style="display:flex; flex-direction:column; gap:12px; margin-bottom:var(--sp-4); list-style:none; padding:0;">
             {% for a in card.anexos %}
-              <li style="display:flex; align-items:center; justify-content:space-between; padding:8px 10px; background:var(--bg); border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
-                <a href="{{ url_for('anexo', nome_arquivo=a.nome) }}" target="_blank" style="color:var(--accent-light); font-weight:600; font-size:13px; word-break:break-all;">
-                  {{ a.nome }}
-                </a>
-                <form method="POST" action="{{ url_for('card_marcar_anexo', id_card=card.id, indice=loop.index0) }}" style="display:inline;">
-                  <button class="btn btn-sm {{ 'btn-primary' if a.importante else 'btn-secondary' }}" type="submit" title="Anexos importantes são enviados ao cadastro do cliente na finalização">
-                    {{ '★ Importante' if a.importante else '☆ Marcar' }}
-                  </button>
-                </form>
+              {% set ext = a.nome.split('.')[-1].lower() %}
+              {% set is_img = ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'] %}
+              {% set is_pdf = ext == 'pdf' %}
+              <li style="padding:10px 12px; background:var(--bg); border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                  <a href="{{ url_for('anexo', nome_arquivo=a.nome) }}" target="_blank" style="color:var(--accent-light); font-weight:600; font-size:13px; word-break:break-all; display:flex; align-items:center; gap:6px;">
+                    {% if is_img %}🖼️{% elif is_pdf %}📄{% else %}📎{% endif %}
+                    {{ a.nome }}
+                  </a>
+                  <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                    {% if is_pdf %}
+                      <button type="button" class="btn btn-sm btn-ghost" onclick="togglePdfPreview('pdf-frame-{{ loop.index }}')" style="font-size:12px; padding:3px 7px;" title="Ver ou recolher PDF no card">
+                        👁 Ver no Card
+                      </button>
+                    {% endif %}
+                    <form method="POST" action="{{ url_for('card_marcar_anexo', id_card=card.id, indice=loop.index0) }}" style="display:inline;">
+                      <button class="btn btn-sm {{ 'btn-primary' if a.importante else 'btn-secondary' }}" type="submit" title="Anexos importantes são enviados ao cadastro do cliente na finalização">
+                        {{ '★ Importante' if a.importante else '☆ Marcar' }}
+                      </button>
+                    </form>
+                  </div>
+                </div>
+
+                {% if is_img %}
+                  <!-- Imagem aberta no card sem baixar nem clicar -->
+                  <div style="margin-top:10px; background:rgba(0,0,0,0.03); border-radius:6px; overflow:hidden; border:1px solid var(--border); text-align:center;">
+                    <img src="{{ url_for('anexo', nome_arquivo=a.nome) }}" alt="{{ a.nome }}"
+                         loading="lazy"
+                         style="max-width:100%; max-height:300px; width:auto; height:auto; display:block; margin:0 auto; object-fit:contain; cursor:zoom-in;"
+                         onclick="window.open(this.src, '_blank')" title="Clique para abrir imagem em tela cheia">
+                  </div>
+                {% elif is_pdf %}
+                  <!-- PDF aberto no card sem baixar -->
+                  <div id="pdf-frame-{{ loop.index }}" style="margin-top:10px; border-radius:6px; overflow:hidden; border:1px solid var(--border); background:var(--bg-card);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:rgba(0,0,0,0.04); font-size:11.5px; font-weight:600; color:var(--text-muted); border-bottom:1px solid var(--border);">
+                      <span>Visualizador de PDF no Card</span>
+                      <a href="{{ url_for('anexo', nome_arquivo=a.nome) }}" target="_blank" style="color:var(--accent-light);">Abrir em nova aba ↗</a>
+                    </div>
+                    <iframe src="{{ url_for('anexo', nome_arquivo=a.nome) }}" style="width:100%; height:420px; border:none; display:block;" title="{{ a.nome }}"></iframe>
+                  </div>
+                {% endif %}
               </li>
             {% endfor %}
           </ul>
@@ -352,4 +524,261 @@
     </div>
   </div>
 
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+// =====================================================================
+// CONSTANTES
+// =====================================================================
+const CARD_ID   = {{ card.id }};
+const QUADRO_ID = {{ quadro.id }};
+
+const CORES_PREDEFINIDAS = [
+  '#61bd4f','#f2d600','#ff9f1a','#eb5a46','#c377e0',
+  '#0079bf','#00c2e0','#51e898','#ff78cb','#344563',
+  '#b3bac5','#8e44ad','#e74c3c','#2ecc71','#e67e22',
+];
+
+let corSelecionada = '#3498db';
+
+// =====================================================================
+// TOGGLE ETIQUETA NO CARD
+// =====================================================================
+async function toggleEtiqueta(etiquetaId, el) {
+  try {
+    const resp = await fetch(`/api/cards/${CARD_ID}/etiquetas/${etiquetaId}/toggle`, {
+      method: 'POST'
+    });
+    const result = await resp.json();
+
+    const check = el.querySelector('.etiqueta-check');
+    const ativa  = result.adicionou;
+    el.dataset.ativa = ativa ? 'true' : 'false';
+    if (check) check.textContent = ativa ? '✓' : '';
+
+    // Atualiza os chips na seção "Etiquetas no card"
+    sincronizarChipsNoCard();
+  } catch (err) {
+    console.error(err);
+    alert('Erro ao atualizar etiqueta.');
+  }
+}
+
+function sincronizarChipsNoCard() {
+  const container = document.getElementById('etiquetasNoCard');
+  container.innerHTML = '';
+
+  const itens = document.querySelectorAll('#listaEtiquetasQuadro .etiqueta-item[data-ativa="true"]');
+  if (itens.length === 0) {
+    container.innerHTML = '<span id="semEtiquetas" style="font-size:12px;color:var(--text-faint);">Nenhuma etiqueta adicionada.</span>';
+    return;
+  }
+
+  itens.forEach(item => {
+    const id  = item.dataset.id;
+    const cor = item.querySelector('span').style.background;
+    const nome = item.querySelectorAll('span')[1].textContent.trim();
+
+    const chip = document.createElement('span');
+    chip.className = 'label-chip';
+    chip.style.background = cor;
+    chip.dataset.id = id;
+    chip.title = nome;
+    chip.textContent = nome;
+    container.appendChild(chip);
+  });
+}
+
+// =====================================================================
+// MODAL CRIAR ETIQUETA
+// =====================================================================
+function abrirModalCriarEtiqueta() {
+  document.getElementById('modalCriarEtiqueta').style.display = 'flex';
+  document.getElementById('novaEtiquetaNome').value = '';
+  corSelecionada = '#3498db';
+
+  // Renderiza swatches
+  const swatches = document.getElementById('swatchesEtiqueta');
+  swatches.innerHTML = '';
+  CORES_PREDEFINIDAS.forEach(cor => {
+    const sw = document.createElement('div');
+    sw.style.cssText = `width:28px;height:28px;border-radius:6px;background:${cor};cursor:pointer;border:3px solid transparent;transition:transform .1s,border-color .1s;`;
+    sw.title = cor;
+    sw.addEventListener('click', () => selecionarCorEtiqueta(cor));
+    if (cor === corSelecionada) sw.style.borderColor = '#344563';
+    swatches.appendChild(sw);
+  });
+
+  document.getElementById('corCustomEtiqueta').value = corSelecionada;
+  atualizarPreviewEtiqueta();
+  setTimeout(() => document.getElementById('novaEtiquetaNome').focus(), 100);
+}
+
+function fecharModalCriarEtiqueta() {
+  document.getElementById('modalCriarEtiqueta').style.display = 'none';
+}
+
+function selecionarCorEtiqueta(cor) {
+  corSelecionada = cor;
+  document.querySelectorAll('#swatchesEtiqueta div').forEach(sw => {
+    sw.style.borderColor = (sw.title === cor) ? '#344563' : 'transparent';
+    sw.style.transform   = (sw.title === cor) ? 'scale(1.2)' : '';
+  });
+  document.getElementById('corCustomEtiqueta').value = cor;
+  atualizarPreviewEtiqueta();
+}
+
+function atualizarPreviewEtiqueta() {
+  const nome = document.getElementById('novaEtiquetaNome').value.trim() || 'Preview';
+  const preview = document.getElementById('previewEtiqueta');
+  preview.textContent = nome;
+  preview.style.background = corSelecionada;
+}
+
+async function criarEtiqueta() {
+  const nome = document.getElementById('novaEtiquetaNome').value.trim();
+  if (!nome) {
+    alert('Informe o nome da etiqueta.');
+    return;
+  }
+
+  try {
+    const resp = await fetch(`/api/quadros/${QUADRO_ID}/etiquetas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome, cor: corSelecionada })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      alert('Erro: ' + (err.erro || 'Falha ao criar'));
+      return;
+    }
+
+    const nova = await resp.json();
+
+    // Adiciona ao card automaticamente
+    await fetch(`/api/cards/${CARD_ID}/etiquetas/${nova.id}/toggle`, { method: 'POST' });
+
+    // Adiciona na lista do quadro
+    const lista = document.getElementById('listaEtiquetasQuadro');
+    // Remove mensagem de "nenhuma etiqueta"
+    const semMsg = lista.querySelector('p');
+    if (semMsg) semMsg.remove();
+
+    const div = document.createElement('div');
+    div.className = 'etiqueta-item';
+    div.dataset.id = nova.id;
+    div.dataset.ativa = 'true';
+    div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;cursor:pointer;border:1px solid var(--border-subtle);transition:background .15s;';
+    div.onclick = () => toggleEtiqueta(nova.id, div);
+    div.innerHTML = `
+      <span style="display:inline-block;width:36px;height:14px;border-radius:7px;background:${nova.cor};flex-shrink:0;"></span>
+      <span style="flex:1;font-size:13px;font-weight:500;color:var(--text);">${nova.nome}</span>
+      <span class="etiqueta-check" style="font-size:16px;color:var(--success,#27ae60);font-weight:700;width:20px;text-align:center;">✓</span>
+    `;
+    lista.appendChild(div);
+
+    sincronizarChipsNoCard();
+    fecharModalCriarEtiqueta();
+  } catch (err) {
+    console.error(err);
+    alert('Erro de comunicação com o servidor.');
+  }
+}
+
+// Fecha modal ao clicar fora
+document.getElementById('modalCriarEtiqueta').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('modalCriarEtiqueta')) fecharModalCriarEtiqueta();
+});
+
+// Hover nos itens de etiqueta
+document.querySelectorAll('.etiqueta-item').forEach(el => {
+  el.addEventListener('mouseenter', () => el.style.background = 'var(--bg-hover, #f0f2f5)');
+  el.addEventListener('mouseleave', () => el.style.background = '');
+});
+
+// Alterna visualização de PDF integrado no card
+function togglePdfPreview(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = (el.style.display === 'none') ? 'block' : 'none';
+}
+
+// ─── Paste de imagem no comentário ───────────────────────────────────────────
+(function () {
+  const campo    = document.getElementById('campoComentario');
+  const form     = document.getElementById('formComentario');
+  const preview  = document.getElementById('previewPasteImg');
+  const previewEl= document.getElementById('previewPasteImgEl');
+  const btn      = document.getElementById('btnComentar');
+
+  if (!campo) return;
+
+  let imagemColada = null; // File/Blob da imagem colada
+
+  campo.addEventListener('paste', function (e) {
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const blob = item.getAsFile();
+        imagemColada = blob;
+        // Mostra preview local sem enviar ainda
+        const urlTemp = URL.createObjectURL(blob);
+        previewEl.src = urlTemp;
+        preview.style.display = 'block';
+        campo.placeholder = 'Adicione um texto opcional para esta imagem…';
+        campo.removeAttribute('required');
+        return;
+      }
+    }
+  });
+
+  window.cancelarImagemColada = function () {
+    imagemColada = null;
+    preview.style.display = 'none';
+    previewEl.src = '';
+    campo.placeholder = 'Escreva uma observação… ou cole uma imagem (Ctrl+V)';
+  };
+
+  form.addEventListener('submit', async function (e) {
+    if (!imagemColada) return; // envio normal pelo form
+
+    e.preventDefault();
+    btn.disabled = true;
+    btn.textContent = 'Enviando…';
+
+    try {
+      const fd = new FormData();
+      // Nomeia com extensão correta baseado no MIME type
+      const ext  = imagemColada.type.split('/')[1] || 'png';
+      const nome = `paste_${Date.now()}.${ext}`;
+      fd.append('imagem', imagemColada, nome);
+
+      const resp = await fetch("{{ url_for('card_comentar_imagem', id_card=card.id) }}", {
+        method: 'POST',
+        body: fd,
+      });
+      const json = await resp.json();
+
+      if (!resp.ok || json.erro) {
+        alert('Erro ao enviar imagem: ' + (json.erro || resp.statusText));
+        btn.disabled = false;
+        btn.textContent = 'Comentar';
+        return;
+      }
+
+      // Sucesso — recarrega a página para exibir o comentário com imagem
+      window.location.reload();
+    } catch (err) {
+      alert('Erro de rede ao enviar imagem: ' + err);
+      btn.disabled = false;
+      btn.textContent = 'Comentar';
+    }
+  });
+})();
+</script>
 {% endblock %}

@@ -852,7 +852,7 @@ def card_da_referencia(referencia_tipo, referencia_id):
     return _card_from_row(row)
 
 
-def criar_card(tipo, id_cadastro, seguro_base_id=None, criado_por="Sistema", dados=None):
+def criar_card(tipo, id_cadastro, seguro_base_id=None, criado_por="Sistema", dados=None, quadro_id=None):
     """
     Cria o card e o respectivo seguro/sinistro em negociação + documento de negociação.
     """
@@ -866,7 +866,19 @@ def criar_card(tipo, id_cadastro, seguro_base_id=None, criado_por="Sistema", dad
         return None
 
     tipo_ref = TIPOS_CARD.get(tipo, "seguro")
-    quadro = quadro_do_comercial(cliente["comercial"], "Sinistro" if tipo == "Sinistro" else "Seguros")
+    if quadro_id:
+        quadro = buscar_quadro(quadro_id)
+    else:
+        quadro = quadro_do_comercial(cliente["comercial"], "Sinistro" if tipo == "Sinistro" else "Seguros")
+
+    if not quadro:
+        todos_q = listar_quadros()
+        alvo = "Sinistro" if tipo == "Sinistro" else "Seguros"
+        quadro = next((q for q in todos_q if q["tipo"] == alvo), (todos_q[0] if todos_q else None))
+
+    if not quadro:
+        conn.close()
+        return None
 
     if tipo_ref == "seguro":
         seguro_base = buscar_seguro(seguro_base_id) if seguro_base_id else None
@@ -898,7 +910,8 @@ def criar_card(tipo, id_cadastro, seguro_base_id=None, criado_por="Sistema", dad
         ))
         id_referencia = cursor.lastrowid
         primeira_coluna = COLUNAS_SEGUROS[0]
-        desc_doc = f"{tipo} — {seguro_base['ramo'] if seguro_base else 'Novo seguro'}"
+        ramo_desc = (seguro_base["ramo"] if seguro_base else dados.get("ramo")) or "Geral"
+        desc_doc = f"{tipo} — {ramo_desc}"
     else:
         cursor.execute("""
             INSERT INTO sinistros (seguro_id, numero, data_ocorrencia, terceiros, status, anexos_json)
@@ -1421,3 +1434,200 @@ def __getattr__(name):
     if name == "TAREFAS":
         return listar_tarefas()
     raise AttributeError(f"Módulo '{__name__}' não possui o atributo '{name}'.")
+
+
+# -----------------------------------------------------------------------------
+# ETIQUETAS (Labels estilo Trello)
+# -----------------------------------------------------------------------------
+
+def listar_etiquetas_por_quadro(quadro_id):
+    """Retorna todas as etiquetas vinculadas a um quadro."""
+    conn = database.get_db()
+    rows = conn.execute("""
+        SELECT e.id, e.nome, e.cor
+        FROM etiquetas e
+        JOIN quadro_etiquetas qe ON qe.etiqueta_id = e.id
+        WHERE qe.quadro_id = ?
+        ORDER BY e.nome ASC;
+    """, (quadro_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def listar_etiquetas_por_card(card_id):
+    """Retorna todas as etiquetas vinculadas a um card."""
+    conn = database.get_db()
+    rows = conn.execute("""
+        SELECT e.id, e.nome, e.cor
+        FROM etiquetas e
+        JOIN card_etiquetas ce ON ce.etiqueta_id = e.id
+        WHERE ce.card_id = ?
+        ORDER BY e.nome ASC;
+    """, (card_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def criar_etiqueta(nome, cor, quadro_id):
+    """Cria uma nova etiqueta e a vincula ao quadro."""
+    conn = database.get_db()
+    cursor = conn.execute(
+        "INSERT OR IGNORE INTO etiquetas (nome, cor) VALUES (?, ?);",
+        (nome.strip(), cor)
+    )
+    etiqueta_id = cursor.lastrowid
+    if not etiqueta_id:
+        row = conn.execute("SELECT id FROM etiquetas WHERE nome = ?;", (nome.strip(),)).fetchone()
+        etiqueta_id = row["id"]
+    conn.execute(
+        "INSERT OR IGNORE INTO quadro_etiquetas (quadro_id, etiqueta_id) VALUES (?, ?);",
+        (quadro_id, etiqueta_id)
+    )
+    conn.commit()
+    conn.close()
+    return etiqueta_id
+
+
+def toggle_etiqueta_card(card_id, etiqueta_id):
+    """Adiciona ou remove a etiqueta do card (toggle). Retorna True se adicionou, False se removeu."""
+    conn = database.get_db()
+    existe = conn.execute(
+        "SELECT 1 FROM card_etiquetas WHERE card_id = ? AND etiqueta_id = ?;",
+        (card_id, etiqueta_id)
+    ).fetchone()
+    if existe:
+        conn.execute(
+            "DELETE FROM card_etiquetas WHERE card_id = ? AND etiqueta_id = ?;",
+            (card_id, etiqueta_id)
+        )
+        adicionou = False
+    else:
+        conn.execute(
+            "INSERT OR IGNORE INTO card_etiquetas (card_id, etiqueta_id) VALUES (?, ?);",
+            (card_id, etiqueta_id)
+        )
+        adicionou = True
+    conn.commit()
+    conn.close()
+    return adicionou
+
+
+def deletar_etiqueta(etiqueta_id):
+    """Remove a etiqueta e todos os seus vínculos."""
+    conn = database.get_db()
+    conn.execute("DELETE FROM etiquetas WHERE id = ?;", (etiqueta_id,))
+    conn.commit()
+    conn.close()
+
+
+def atualizar_etiqueta(etiqueta_id, nome, cor):
+    """Atualiza nome e cor de uma etiqueta."""
+    conn = database.get_db()
+    conn.execute(
+        "UPDATE etiquetas SET nome = ?, cor = ? WHERE id = ?;",
+        (nome.strip(), cor, etiqueta_id)
+    )
+    conn.commit()
+    conn.close()
+
+
+def transferir_card_quadro(id_card, novo_quadro_id, usuario_nome="Sistema"):
+    """
+    Move um card para o quadro de outro comercial (usado por Assistentes e Administradores).
+    Ajusta a coluna do card para uma coluna válida do novo quadro.
+    Preserva as etiquetas do card no novo quadro.
+    Registra histórico no card.
+    """
+    conn = database.get_db()
+    card = buscar_card(id_card)
+    if not card:
+        conn.close()
+        return False, "Cartão não encontrado."
+
+    quadro_atual = buscar_quadro(card["quadro_id"])
+    novo_quadro = buscar_quadro(novo_quadro_id)
+    if not novo_quadro:
+        conn.close()
+        return False, "Quadro de destino não encontrado."
+
+    colunas_novas = novo_quadro.get("colunas", [])
+    if not colunas_novas:
+        colunas_novas = ["Novo", "Em Análise", "Concluído"]
+
+    nova_coluna = card.get("coluna")
+    if nova_coluna not in colunas_novas:
+        nova_coluna = colunas_novas[0]
+
+    conn.execute(
+        "UPDATE cards SET quadro_id = ?, coluna = ? WHERE id = ?;",
+        (novo_quadro_id, nova_coluna, id_card)
+    )
+
+    conn.execute(
+        "UPDATE documentos_negociacao SET status = ?, data_atualizacao = ? WHERE card_id = ?;",
+        (nova_coluna, date.today().isoformat(), id_card)
+    )
+
+    # Garante que as etiquetas do card continuem visíveis no novo quadro
+    conn.execute("""
+        INSERT OR IGNORE INTO quadro_etiquetas (quadro_id, etiqueta_id)
+        SELECT ?, etiqueta_id FROM card_etiquetas WHERE card_id = ?;
+    """, (novo_quadro_id, id_card))
+
+    comentarios = card.get("comentarios", []) or []
+    comentarios.append({
+        "autor": usuario_nome,
+        "texto": f"Card transferido do quadro '{quadro_atual['nome'] if quadro_atual else ''}' para o quadro '{novo_quadro['nome']}' ({novo_quadro.get('comercial', '')}) por {usuario_nome}.",
+        "data": date.today().isoformat(),
+    })
+    conn.execute("UPDATE cards SET comentarios_json = ? WHERE id = ?;", (json.dumps(comentarios), id_card))
+
+    conn.commit()
+    conn.close()
+    return True, "Cartão transferido com sucesso."
+
+
+# -----------------------------------------------------------------------------
+# BUSCA GLOBAL DE CARDS
+# -----------------------------------------------------------------------------
+def buscar_cards_por_texto(termo, ids_quadros):
+    """Retorna cards nos quadros informados cujo cliente/seguro bata com o termo.
+
+    A busca é feita em SQL usando LIKE nos campos de texto das tabelas de
+    referência para evitar carregar todos os registros em memória.
+    Se `ids_quadros` for vazio, retorna lista vazia.
+    """
+    if not ids_quadros or not termo:
+        return []
+
+    placeholders = ",".join("?" * len(ids_quadros))
+    like = f"%{termo}%"
+
+    conn = database.get_db()
+    rows = conn.execute(f"""
+        SELECT DISTINCT c.*
+        FROM cards c
+        LEFT JOIN seguros   s   ON c.referencia_tipo = 'seguro'   AND c.referencia_id = s.id
+        LEFT JOIN sinistros si  ON c.referencia_tipo = 'sinistro' AND c.referencia_id = si.id
+        LEFT JOIN seguros   ss  ON si.seguro_id = ss.id
+        LEFT JOIN cadastros cl  ON cl.id = COALESCE(s.cadastro_id, ss.cadastro_id)
+        WHERE c.quadro_id IN ({placeholders})
+          AND (
+              cl.nome            LIKE ? COLLATE NOCASE OR
+              s.ramo             LIKE ? COLLATE NOCASE OR
+              s.seguradora       LIKE ? COLLATE NOCASE OR
+              s.numero_apolice   LIKE ? COLLATE NOCASE OR
+              c.tipo             LIKE ? COLLATE NOCASE
+          )
+        ORDER BY c.id DESC
+        LIMIT 100;
+    """, (*ids_quadros, like, like, like, like, like)).fetchall()
+    conn.close()
+
+    resultados = []
+    for row in rows:
+        card = _card_from_row(row)
+        ref, cliente = referencia_do_card(card)
+        resultados.append({**card, "referencia": ref, "cliente": cliente})
+    return resultados
+

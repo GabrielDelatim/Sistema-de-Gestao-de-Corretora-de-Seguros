@@ -1,0 +1,85 @@
+{% extends "layout/base.html" %}
+
+{% block titulo %}Busca de Cards{% endblock %}
+{% block migalha %}Busca{% endblock %}
+{% block cabecalho %}Busca de Cards{% endblock %}
+
+{% block conteudo %}
+<div style="max-width:900px; margin:0 auto;">
+
+  <!-- Barra de busca destacada na própria página -->
+  <form method="GET" action="{{ url_for('cards_busca') }}"
+        class="flex gap-2" style="margin-bottom:var(--sp-5);">
+    <input class="input" type="text" name="q"
+           value="{{ termo }}"
+           placeholder="Nome do cliente, seguradora, apólice, ramo, tipo…"
+           style="flex:1;" autofocus>
+    <button class="btn btn-primary" type="submit">🔍 Buscar</button>
+  </form>
+
+  {% if termo %}
+    <p style="font-size:13px; color:var(--text-faint); margin-bottom:var(--sp-4);">
+      {% if total == 0 %}
+        Nenhum resultado para <strong>{{ termo }}</strong>.
+      {% else %}
+        {{ total }} card{{ 's' if total != 1 }} encontrado{{ 's' if total != 1 }} para
+        <strong>{{ termo }}</strong>.
+      {% endif %}
+    </p>
+
+    {% if resultados %}
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        {% for r in resultados %}
+          {% set cliente_nome = r.cliente.nome if r.cliente else '—' %}
+          {% set ramo         = r.referencia.ramo       if r.referencia and r.referencia.ramo       else '' %}
+          {% set seguradora   = r.referencia.seguradora if r.referencia and r.referencia.seguradora else '' %}
+          {% set apolice      = r.referencia.numero_apolice if r.referencia and r.referencia.numero_apolice else '' %}
+
+          <a href="{{ url_for('card_detalhe', id_card=r.id) }}"
+             style="text-decoration:none; display:block;">
+            <div class="card" style="padding:14px 18px; transition:box-shadow .15s;
+                                     border-left:4px solid var(--primary);"
+                 onmouseenter="this.style.boxShadow='0 4px 16px rgba(0,0,0,.12)'"
+                 onmouseleave="this.style.boxShadow=''">
+              <div class="flex items-center justify-between" style="margin-bottom:4px;">
+                <strong style="font-size:14.5px; color:var(--text);">{{ cliente_nome }}</strong>
+                <span style="font-size:12px; color:var(--text-faint);">Card #{{ r.id }}</span>
+              </div>
+              <div class="flex gap-3" style="flex-wrap:wrap; font-size:12.5px; color:var(--text-muted);">
+                <span>
+                  <strong>Tipo:</strong>
+                  <span class="badge" style="font-size:11px;">{{ r.tipo }}</span>
+                </span>
+                {% if ramo %}
+                  <span><strong>Ramo:</strong> {{ ramo }}</span>
+                {% endif %}
+                {% if seguradora %}
+                  <span><strong>Seguradora:</strong> {{ seguradora }}</span>
+                {% endif %}
+                {% if apolice %}
+                  <span><strong>Apólice:</strong> {{ apolice }}</span>
+                {% endif %}
+                <span>
+                  <strong>Coluna:</strong>
+                  <code style="font-size:11px;">{{ r.coluna }}</code>
+                </span>
+              </div>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+  {% else %}
+    <!-- Estado vazio: nenhuma busca feita ainda -->
+    <div style="text-align:center; padding:48px 0; color:var(--text-faint);">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+           style="margin-bottom:12px; opacity:.4;">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <p style="font-size:15px; margin:0;">Digite um termo acima para buscar cards nos quadros que você tem acesso.</p>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

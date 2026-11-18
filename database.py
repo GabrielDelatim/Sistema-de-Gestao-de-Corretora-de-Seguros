@@ -40,6 +40,9 @@ def init_db(forcar_recriar=False):
 
     if forcar_recriar:
         cursor.executescript("""
+            DROP TABLE IF EXISTS card_etiquetas;
+            DROP TABLE IF EXISTS quadro_etiquetas;
+            DROP TABLE IF EXISTS etiquetas;
             DROP TABLE IF EXISTS configuracoes;
             DROP TABLE IF EXISTS logs_auditoria;
             DROP TABLE IF EXISTS historico_eventos;
@@ -209,6 +212,33 @@ def init_db(forcar_recriar=False):
         CREATE TABLE IF NOT EXISTS configuracoes (
             chave TEXT PRIMARY KEY,
             valor TEXT NOT NULL
+        );
+    """)
+
+    # 12. ETIQUETAS (Labels estilo Trello)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS etiquetas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            cor TEXT NOT NULL DEFAULT '#CCCCCC'
+        );
+    """)
+
+    # 13. ETIQUETAS POR QUADRO
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS quadro_etiquetas (
+            quadro_id INTEGER NOT NULL REFERENCES quadros(id) ON DELETE CASCADE,
+            etiqueta_id INTEGER NOT NULL REFERENCES etiquetas(id) ON DELETE CASCADE,
+            PRIMARY KEY (quadro_id, etiqueta_id)
+        );
+    """)
+
+    # 14. ETIQUETAS POR CARD
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS card_etiquetas (
+            card_id INTEGER NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+            etiqueta_id INTEGER NOT NULL REFERENCES etiquetas(id) ON DELETE CASCADE,
+            PRIMARY KEY (card_id, etiqueta_id)
         );
     """)
 

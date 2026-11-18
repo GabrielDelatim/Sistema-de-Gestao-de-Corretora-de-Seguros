@@ -1,0 +1,177 @@
+/* =============================================================================
+   labels.css — Estilo de Etiquetas (Labels) do Kanban — estilo Trello
+   ============================================================================= */
+
+/* Barra de etiquetas do quadro */
+.board-labels-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 16px;
+    background: rgba(0,0,0,0.05);
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    min-height: 44px;
+}
+
+.board-labels-bar .bar-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #5e6c84;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-right: 4px;
+}
+
+/* Etiqueta na barra do quadro */
+.label-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 24px;
+    padding: 0 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    user-select: none;
+    transition: filter 0.15s, transform 0.1s;
+    white-space: nowrap;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.3);
+}
+
+.label-chip:hover {
+    filter: brightness(0.88);
+    transform: scale(1.05);
+}
+
+.label-chip.selecionada {
+    outline: 3px solid #fff;
+    box-shadow: 0 0 0 4px rgba(0,0,0,0.25);
+}
+
+/* Versão compacta (sem texto) */
+.label-chip.compacta {
+    width: 40px;
+    padding: 0;
+    justify-content: center;
+    font-size: 0; /* esconde texto mas mantém elemento */
+}
+
+/* Etiqueta visível dentro do cartão Kanban */
+.card-labels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 6px;
+}
+
+.card-label {
+    display: inline-block;
+    height: 8px;
+    min-width: 40px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: height 0.15s, min-width 0.15s, filter 0.15s;
+    user-select: none;
+}
+
+.card-label:hover {
+    filter: brightness(0.88);
+}
+
+/* Quando expandido (mostra texto) */
+.card-label.expandida {
+    height: 20px;
+    min-width: 48px;
+    padding: 0 6px;
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.3);
+    border-radius: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100px;
+}
+
+/* Botão "+ Etiqueta" na barra */
+.btn-nova-etiqueta {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 24px;
+    padding: 0 10px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.4);
+    border: 1px dashed rgba(0,0,0,0.25);
+    font-size: 12px;
+    font-weight: 600;
+    color: #344563;
+    cursor: pointer;
+    transition: background 0.15s;
+    text-decoration: none;
+}
+
+.btn-nova-etiqueta:hover {
+    background: rgba(255,255,255,0.7);
+}
+
+/* Toggle texto de etiquetas nos cards */
+.btn-toggle-labels {
+    font-size: 10px;
+    color: #5e6c84;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 4px;
+    text-decoration: underline dotted;
+    margin-left: 4px;
+}
+
+/* Modal de etiquetas */
+#modalEtiqueta .color-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+#modalEtiqueta .color-swatch {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: border-color 0.1s, transform 0.1s;
+}
+
+#modalEtiqueta .color-swatch:hover {
+    transform: scale(1.1);
+}
+
+#modalEtiqueta .color-swatch.ativo {
+    border-color: #344563;
+    transform: scale(1.15);
+}
+
+/* Tooltip de etiqueta na barra ao hover */
+.label-chip[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #172b4d;
+    color: #fff;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 100;
+}

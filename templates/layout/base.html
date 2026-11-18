@@ -20,6 +20,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/labels.css') }}">
 {% block estilos_extra %}{% endblock %}
 </head>
 <body>
@@ -101,6 +102,20 @@
         </div>
       </div>
       <div class="topbar-actions">
+        <!-- Busca global de cards -->
+        <form method="GET" action="/cards/busca"
+              class="flex items-center"
+              style="background:var(--bg-secondary,#f4f5f7); border:1px solid var(--border); border-radius:8px; padding:3px 8px; gap:4px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+               style="color:var(--text-faint); flex-shrink:0;">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input type="text" name="q" placeholder="Buscar cards…"
+                 style="border:none; background:transparent; outline:none; font-size:13px;
+                        color:var(--text); width:160px; min-width:80px;"
+                 value="{{ request.args.get('q','') if request.endpoint == 'cards_busca' else '' }}">
+        </form>
+
         <!-- Alternador de Tema Escuro / Claro -->
         <button class="theme-toggle-btn" id="themeToggleBtn" type="button" aria-label="Alternar tema" title="Alternar modo claro / escuro">
           <span class="icon-sun">{{ icone('sun', tamanho=16) }}</span>
